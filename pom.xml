@@ -10,7 +10,8 @@
 		<module>dfs-datanode</module>
 		<module>dfs-namenode</module>
 		<module>dfs-common</module>
-	</modules>
+        <module>dfs-client</module>
+    </modules>
     <packaging>pom</packaging>
 
   	<properties>

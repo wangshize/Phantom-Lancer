@@ -1,9 +1,6 @@
 package com.github.dfs.namenode.server;
 
-import com.github.dfs.namenode.rpc.model.HeartbeatRequest;
-import com.github.dfs.namenode.rpc.model.HeartbeatResponse;
-import com.github.dfs.namenode.rpc.model.RegisterRequest;
-import com.github.dfs.namenode.rpc.model.RegisterResponse;
+import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 
 import io.grpc.stub.StreamObserver;
@@ -79,5 +76,24 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 		responseObserver.onNext(response);
 		responseObserver.onCompleted();
 	}
-	
+
+	/**
+	 * 创建目录
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void mkdir(MkdirRequest request, StreamObserver<MkdirResponse> responseObserver) {
+		try {
+			this.namesystem.mkdir(request.getPath());
+			System.out.println("创建目录：path = " + request.getPath());
+			MkdirResponse response = MkdirResponse.newBuilder()
+					.setStatus(STATUS_SUCCESS)
+					.build();
+			responseObserver.onNext(response);
+			responseObserver.onCompleted();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 }

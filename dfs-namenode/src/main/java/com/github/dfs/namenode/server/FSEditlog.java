@@ -140,7 +140,14 @@ public class FSEditlog {
 			this.txid = txid;
 			this.content = content;
 		}
-		
+
+		@Override
+		public String toString() {
+			return "EditLog{" +
+					"txid=" + txid +
+					", content='" + content + '\'' +
+					'}';
+		}
 	}
 	
 	/**
@@ -189,7 +196,7 @@ public class FSEditlog {
 		 */
 		public void flush() {
 			for(EditLog log : syncBuffer) {
-				System.out.println("将edit log写入磁盘文件中：" + log); 
+				System.out.println("将edit log写入磁盘文件中：" + log.toString());
 				// 正常来说，就是用文件输出流将数据写入磁盘文件中
 			}
 			syncBuffer.clear();  
