@@ -9,6 +9,7 @@ public class DataNodeInfo {
 
 	private String ip;
 	private String hostname;
+	private long latestHeartbeatTime = System.currentTimeMillis();
 	
 	public DataNodeInfo(String ip, String hostname) {
 		this.ip = ip;
@@ -27,5 +28,12 @@ public class DataNodeInfo {
 	public void setHostname(String hostname) {
 		this.hostname = hostname;
 	}
-	
+
+	public long getLatestHeartbeatTime() {
+		return latestHeartbeatTime;
+	}
+
+	public void setLatestHeartbeatTime(long latestHeartbeatTime) {
+		this.latestHeartbeatTime = latestHeartbeatTime;
+	}
 }

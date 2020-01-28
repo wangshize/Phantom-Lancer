@@ -42,6 +42,8 @@ public class NameNodeOfferService {
 	public void start() {
 		// 直接使用两个ServiceActor组件分别向主备两个NameNode节点进行注册
 		register();
+
+		startHearbeat();
 	}
 	
 	/**
@@ -57,6 +59,11 @@ public class NameNodeOfferService {
 		} catch (Exception e) {
 			e.printStackTrace();  
 		}
+	}
+
+	public void startHearbeat() {
+		this.activeServiceActor.startHearbeat();
+		this.standbyServiceActor.startHearbeat();
 	}
 	
 	/**

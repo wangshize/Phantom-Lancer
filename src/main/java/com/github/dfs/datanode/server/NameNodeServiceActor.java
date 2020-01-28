@@ -16,6 +16,10 @@ public class NameNodeServiceActor {
 		Thread registerThread = new RegisterThread(latch);
 		registerThread.start(); 
 	}
+
+	public void startHearbeat() {
+		new HeartbeatThread().start();
+	}
 	
 	/**
 	 * 负责注册的线程
@@ -51,6 +55,29 @@ public class NameNodeServiceActor {
 			}
 		}
 		
+	}
+
+	/**
+	 * 负责心跳的线程
+	 * @author zhonghuashishan
+	 *
+	 */
+	class HeartbeatThread extends Thread {
+
+		@Override
+		public void run() {
+			try {
+				System.out.println("发送RPC请求到NameNode进行注册.......");
+				//发送心跳的机器信息
+				String ip = "127.0.0.1";
+				String hostname = "dfs-data-01";
+				//每隔30秒发送心跳
+				Thread.sleep(1000 * 30);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
 	}
 	
 }

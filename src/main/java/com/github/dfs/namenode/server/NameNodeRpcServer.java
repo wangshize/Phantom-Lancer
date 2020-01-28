@@ -42,6 +42,10 @@ public class NameNodeRpcServer {
 	public Boolean register(String ip, String hostname) throws Exception {
 		return datanodeManager.register(ip, hostname);
 	}
+
+	public Boolean heartbeat(String ip, String hostname) throws Exception {
+		return datanodeManager.heartbeat(ip, hostname);
+	}
 	
 	/**
 	 * 启动这个rpc server
