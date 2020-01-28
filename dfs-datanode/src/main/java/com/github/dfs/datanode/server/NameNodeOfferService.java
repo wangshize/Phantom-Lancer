@@ -2,7 +2,6 @@ package com.github.dfs.datanode.server;
 
 import java.util.Iterator;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
 
 /**
  * 负责跟一组NameNode进行通信的OfferServie组件
@@ -14,11 +13,7 @@ public class NameNodeOfferService {
 	/**
 	 * 负责跟NameNode主节点通信的ServiceActor组件
 	 */
-	private NameNodeServiceActor activeServiceActor;
-	/**
-	 * 负责跟NameNode备节点通信的ServiceActor组件
-	 */
-	private NameNodeServiceActor standbyServiceActor;
+	private NameNodeServiceActor serviceActor;
 	/**
 	 * 这个datanode上保存的ServiceActor列表
 	 */
@@ -28,12 +23,7 @@ public class NameNodeOfferService {
 	 * 构造函数
 	 */
 	public NameNodeOfferService() {
-		this.activeServiceActor = new NameNodeServiceActor();
-		this.standbyServiceActor = new NameNodeServiceActor();
-		
-		this.serviceActors = new CopyOnWriteArrayList<NameNodeServiceActor>();
-		this.serviceActors.add(activeServiceActor);
-		this.serviceActors.add(standbyServiceActor);
+		this.serviceActor = new NameNodeServiceActor();
 	}
 	
 	/**
@@ -42,8 +32,8 @@ public class NameNodeOfferService {
 	public void start() {
 		// 直接使用两个ServiceActor组件分别向主备两个NameNode节点进行注册
 		register();
-
-		startHearbeat();
+		// 开始发送心跳
+		startHeartbeat();
 	}
 	
 	/**
@@ -51,19 +41,17 @@ public class NameNodeOfferService {
 	 */
 	private void register() {
 		try {
-			CountDownLatch latch = new CountDownLatch(2);  
-			this.activeServiceActor.register(latch); 
-			this.standbyServiceActor.register(latch); 
-			latch.await();
-			System.out.println("主备NameNode全部注册完毕......");   
+			this.serviceActor.register(); 
 		} catch (Exception e) {
 			e.printStackTrace();  
 		}
 	}
-
-	public void startHearbeat() {
-		this.activeServiceActor.startHearbeat();
-		this.standbyServiceActor.startHearbeat();
+	
+	/**
+	 * 开始发送心跳给NameNode
+	 */
+	private void startHeartbeat() {
+		this.serviceActor.startHeartbeat();
 	}
 	
 	/**

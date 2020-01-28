@@ -5,16 +5,50 @@
   	<groupId>com.github.dfs</groupId>
   	<artifactId>distributed-filesystem</artifactId>
   	<version>0.0.1-SNAPSHOT</version>
-  	<packaging>jar</packaging>
-
-  	<name>distributed-filesystem</name>
-  	<url>http://maven.apache.org</url>
+    <modules>
+		<module>dfs-rpc</module>
+		<module>dfs-datanode</module>
+		<module>dfs-namenode</module>
+		<module>dfs-common</module>
+	</modules>
+    <packaging>pom</packaging>
 
   	<properties>
     	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  	</properties>
+		<java.version>1.8</java.version>
+		<rpc.version>0.0.1-SNAPSHOT</rpc.version>
+		<common.version>0.0.1-SNAPSHOT</common.version>
+		<grpc.version>1.17.1</grpc.version>
+		<protobuf.java.version>3.3.0</protobuf.java.version>
+	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.google.protobuf</groupId>
+				<artifactId>protobuf-java</artifactId>
+				<version>${protobuf.java.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-core</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-stub</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-protobuf</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-netty</artifactId>
+				<version>${grpc.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
-  	<dependencies>
-
-  	</dependencies>
 </project>

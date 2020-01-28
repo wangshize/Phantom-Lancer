@@ -40,6 +40,7 @@ public class FSEditlog {
 	
 	/**
 	 * 记录edits log日志
+	 * @param log
 	 */
 	public void logEdit(String content) {
 		// 这里必须得直接加锁
