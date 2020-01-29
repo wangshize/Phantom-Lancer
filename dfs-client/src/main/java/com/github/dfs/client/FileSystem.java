@@ -7,4 +7,6 @@ package com.github.dfs.client;
 public interface FileSystem {
 
     void mkdir(String path);
+
+    void shutdown();
 }

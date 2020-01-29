@@ -2,6 +2,7 @@ package com.github.dfs.client;
 
 import com.github.dfs.namenode.rpc.model.MkdirRequest;
 import com.github.dfs.namenode.rpc.model.MkdirResponse;
+import com.github.dfs.namenode.rpc.model.ShutdownRequest;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NegotiationType;
@@ -37,5 +38,13 @@ public class FileSystemImpl implements FileSystem {
                 .build();
         MkdirResponse response = namenode.mkdir(request);
         System.out.println("创建目录的响应：" + response.getStatus());
+    }
+
+    @Override
+    public void shutdown() {
+        ShutdownRequest request = ShutdownRequest.newBuilder()
+                .setCode(1)
+                .build();
+        namenode.shutdown(request);
     }
 }

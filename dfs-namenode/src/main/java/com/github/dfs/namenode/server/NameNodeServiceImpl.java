@@ -14,7 +14,8 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 
 	public static final Integer STATUS_SUCCESS = 1;
 	public static final Integer STATUS_FAILURE = 2;
-	
+	public static final Integer STATUS_SHUTDOWN = 3;
+
 	/**
 	 * 负责管理元数据的核心组件
 	 */
@@ -23,6 +24,8 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	 * 负责管理集群中所有的datanode的组件
 	 */
 	private DataNodeManager datanodeManager;
+
+	private volatile boolean isRunning = true;
 	
 	public NameNodeServiceImpl(
 			FSNamesystem namesystem, 
@@ -85,15 +88,35 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	@Override
 	public void mkdir(MkdirRequest request, StreamObserver<MkdirResponse> responseObserver) {
 		try {
-			this.namesystem.mkdir(request.getPath());
-			System.out.println("创建目录：path = " + request.getPath());
-			MkdirResponse response = MkdirResponse.newBuilder()
-					.setStatus(STATUS_SUCCESS)
-					.build();
+			MkdirResponse response = null;
+			if(!isRunning) {
+				response = MkdirResponse.newBuilder()
+						.setStatus(STATUS_SHUTDOWN)
+						.build();
+			} else {
+				this.namesystem.mkdir(request.getPath());
+				System.out.println("创建目录：path = " + request.getPath());
+				response = MkdirResponse.newBuilder()
+						.setStatus(STATUS_SUCCESS)
+						.build();
+			}
+
 			responseObserver.onNext(response);
 			responseObserver.onCompleted();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	/**
+	 * 优雅关闭
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void shutdown(ShutdownRequest request, StreamObserver<ShutdownResponse> responseObserver) {
+		System.out.println("正在关闭namenode。。。");
+		this.isRunning = false;
+		this.namesystem.flushForce();
 	}
 }

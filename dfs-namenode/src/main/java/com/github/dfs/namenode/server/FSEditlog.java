@@ -147,5 +147,17 @@ public class FSEditlog {
 			notifyAll();
 		}
 	}
+
+	/**
+	 * 强制刷盘
+	 */
+	public void flushForce() {
+		try {
+			editLogBuffer.setReadyToSync();
+			editLogBuffer.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 	
 }

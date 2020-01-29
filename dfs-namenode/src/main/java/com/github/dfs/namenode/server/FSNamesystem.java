@@ -35,6 +35,10 @@ public class FSNamesystem {
 		return true;
 	}
 
+	public void flushForce() {
+		this.editlog.flushForce();
+	}
+
 	class EditLog {
 		FileOP OP;
 		String path;
