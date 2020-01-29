@@ -118,5 +118,10 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 		System.out.println("正在关闭namenode。。。");
 		this.isRunning = false;
 		this.namesystem.flushForce();
+		ShutdownResponse response = ShutdownResponse.newBuilder()
+				.setStatus(STATUS_SUCCESS)
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
 	}
 }
