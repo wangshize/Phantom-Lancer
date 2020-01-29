@@ -25,11 +25,12 @@ public class FSDirectory {
 	 */
 	public void mkdir(String path) {
 		// path = /usr/warehouse/hive
-		// 你应该先判断一下，“/”根目录下有没有一个“usr”目录的存在
+		// 先判断一下，“/”根目录下有没有一个“usr”目录的存在
 		// 如果说有的话，那么再判断一下，“/usr”目录下，有没有一个“/warehouse”目录的存在
 		// 如果说没有，那么就得先创建一个“/warehosue”对应的目录，挂在“/usr”目录下
 		// 接着再对“/hive”这个目录创建一个节点挂载上去
-	
+
+		//内存数据结构，更新的时候必须加锁
 		synchronized(dirTree) {
 			String[] pathes = path.split("/");
 			INodeDirectory parent = dirTree;
@@ -46,9 +47,32 @@ public class FSDirectory {
 				}
 				
 				INodeDirectory child = new INodeDirectory(splitedPath); 
-				parent.addChild(child);  
+				parent.addChild(child);
+				parent = child;
 			}
 		}
+//		printDirTree(dirTree, "-");
+	}
+
+	private void printDirTree(INodeDirectory dirTree, String blank) {
+		if(dirTree.getChildren().size() == 0) {
+			return;
+		}
+		for(INode dir : dirTree.getChildren()) {
+			System.out.println(blank + ((INodeDirectory) dir).getPath());
+			printDirTree((INodeDirectory) dir, blank + "-");
+		}
+	}
+
+	public void remove(String path) {
+		INodeDirectory node = findDirectory(dirTree, path);
+		if(node == null) {
+			throw new IllegalArgumentException("目录不存在");
+		}
+	}
+
+	public void update(String newPath, String oldPath) {
+
 	}
 	
 	/**
@@ -62,8 +86,6 @@ public class FSDirectory {
 			return null;
 		}
 		
-		INodeDirectory resultDir = null;
-		
 		for(INode child : dir.getChildren()) {
 			if(child instanceof INodeDirectory) {
 				INodeDirectory childDir = (INodeDirectory) child;
@@ -71,11 +93,7 @@ public class FSDirectory {
 				if((childDir.getPath().equals(path))) {
 					return childDir;
 				} 
-				
-				resultDir = findDirectory(childDir, path);
-				if(resultDir != null) {
-					return resultDir;
-				}
+
 			}
 		}
 		
@@ -123,7 +141,14 @@ public class FSDirectory {
 		public void setChildren(List<INode> children) {
 			this.children = children;
 		}
-		
+
+		@Override
+		public String toString() {
+			return "INodeDirectory{" +
+					"path='" + path + '\'' +
+					", children=" + children +
+					'}';
+		}
 	}
 	
 	/**
@@ -141,7 +166,13 @@ public class FSDirectory {
 		public void setName(String name) {
 			this.name = name;
 		}
-		
+
+		@Override
+		public String toString() {
+			return "INodeFile{" +
+					"name='" + name + '\'' +
+					'}';
+		}
 	}
 	
 }
