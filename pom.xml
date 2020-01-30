@@ -11,7 +11,8 @@
 		<module>dfs-namenode</module>
 		<module>dfs-common</module>
         <module>dfs-client</module>
-    </modules>
+		<module>dfs-backupnode</module>
+	</modules>
     <packaging>pom</packaging>
 
   	<properties>

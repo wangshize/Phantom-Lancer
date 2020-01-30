@@ -1,7 +1,10 @@
 package com.github.dfs.namenode.server;
 
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 负责管理edits log日志的核心组件
@@ -34,11 +37,7 @@ public class FSEditlog {
 	 * 每个线程自己本地的txid副本
 	 */
 	private ThreadLocal<Long> localTxid = new ThreadLocal<Long>();
-	
-	// 就会导致说，对一个共享的map数据结构出现多线程并发的读写的问题
-	// 此时对这个map的读写是不是就需要加锁了
-//	private Map<Thread, Long> txidMap = new HashMap<Thread, Long>();
-	
+
 	/**
 	 * 记录edits log日志
 	 * @param content
@@ -157,6 +156,20 @@ public class FSEditlog {
 			editLogBuffer.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * 已落盘的txid和文件路径映射
+	 * @return
+	 */
+	public List<FlushedFileMapper> getTxidFileMapper() {
+		return editLogBuffer.getTxidFileMapper();
+	}
+
+	public List<String> getBufferEdisLog() {
+		synchronized (this) {
+			return Arrays.asList(editLogBuffer.getBufferEditsLog());
 		}
 	}
 	

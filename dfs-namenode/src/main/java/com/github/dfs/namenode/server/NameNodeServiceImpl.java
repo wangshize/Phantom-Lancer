@@ -1,9 +1,22 @@
 package com.github.dfs.namenode.server;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 
 import io.grpc.stub.StreamObserver;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * NameNode的rpc服务的接口
@@ -16,6 +29,8 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	public static final Integer STATUS_FAILURE = 2;
 	public static final Integer STATUS_SHUTDOWN = 3;
 
+	private static final String editelogPath = "/Users/wangsz/SourceCode/editslog/";
+
 	/**
 	 * 负责管理元数据的核心组件
 	 */
@@ -26,7 +41,9 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	private DataNodeManager datanodeManager;
 
 	private volatile boolean isRunning = true;
-	
+
+	public static final Integer BACKUP_NODE_FETCH_SIZE = 10;
+
 	public NameNodeServiceImpl(
 			FSNamesystem namesystem, 
 			DataNodeManager datanodeManager) {
@@ -115,13 +132,111 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	 */
 	@Override
 	public void shutdown(ShutdownRequest request, StreamObserver<ShutdownResponse> responseObserver) {
-		System.out.println("正在关闭namenode。。。");
 		this.isRunning = false;
 		this.namesystem.flushForce();
+		System.out.println("正在关闭namenode完成");
 		ShutdownResponse response = ShutdownResponse.newBuilder()
 				.setStatus(STATUS_SUCCESS)
 				.build();
 		responseObserver.onNext(response);
 		responseObserver.onCompleted();
+	}
+
+	/**
+	 * 同步editslog
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void fetchEditsLog(FetchEditsLogRequest request, StreamObserver<FetchEditsLogResponse> responseObserver) {
+		long expectBeginTxid = request.getEditsLogTxId();
+		FetchEditsLogResponse response = null;
+		JSONArray fetchedEditsLog = new JSONArray();
+
+		List<FlushedFileMapper> txidFileMappers = namesystem.getEditlog().getTxidFileMapper();
+		//表示此时没有任何数据写入磁盘
+		if(txidFileMappers.isEmpty()) {
+			List<String> bufferedEditsLog = namesystem.getEditlog().getBufferEdisLog();
+			fullFetchedEditLog(fetchedEditsLog, bufferedEditsLog, expectBeginTxid);
+		} else {
+			boolean isTxidOnFile = false;
+			String filePath = null;
+			int mapperIndex = 0;
+			long fetchBeginTxid = expectBeginTxid + 1;
+			for (FlushedFileMapper txidFileMapper : txidFileMappers) {
+				isTxidOnFile = txidFileMapper.isBetween(fetchBeginTxid);
+				if(isTxidOnFile) {
+					filePath = txidFileMapper.getFilePath();
+					break;
+				}
+				mapperIndex++;
+			}
+			//情况1、拉取的txid在某个磁盘文件
+			if(isTxidOnFile) {
+				//一个edits log文件包含的数据足够本次拉取
+				try {
+					List<String> editsLogs = Files.readAllLines(Paths.get(filePath), StandardCharsets.UTF_8);
+					expectBeginTxid = fullFetchedEditLog(fetchedEditsLog, editsLogs, expectBeginTxid);
+					//是否需要继续拉取下一个文件的数据
+					int fetchCount = fetchedEditsLog.size();
+					while (fetchCount < BACKUP_NODE_FETCH_SIZE) {
+						if(txidFileMappers.size() >= mapperIndex + 1) {
+							//已经没有更多落盘的eitslog文件
+							break;
+						}
+						FlushedFileMapper nextMapper = txidFileMappers.get(++mapperIndex);
+						String nextFilePath = nextMapper.getFilePath();
+						editsLogs = Files.readAllLines(Paths.get(nextFilePath), StandardCharsets.UTF_8);
+						expectBeginTxid = fullFetchedEditLog(fetchedEditsLog, editsLogs, expectBeginTxid);
+						fetchCount = fetchedEditsLog.size();
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			//情况2、拉取的txid已经比磁盘文件里的全部都新，还在内存缓冲
+			int fetchCount = fetchedEditsLog.size();
+			if(fetchCount < BACKUP_NODE_FETCH_SIZE) {
+				List<String> bufferedEditsLog = namesystem.getEditlog().getBufferEdisLog();
+				fullFetchedEditLog(fetchedEditsLog, bufferedEditsLog, expectBeginTxid);
+			}
+		}
+		response = FetchEditsLogResponse.newBuilder()
+				.setEditsLog(fetchedEditsLog.toJSONString())
+				.build();
+
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
+
+	/**
+	 * 填充最终需要返回的editlog数据
+	 * @param fetchedEditsLog
+	 * @param editsLogs
+	 * @param expectBeginTxid
+	 * @return 本次填充进来的最大txid
+	 */
+	private long fullFetchedEditLog(JSONArray fetchedEditsLog, List<String> editsLogs, long expectBeginTxid) {
+		long fetchTxid = expectBeginTxid;
+		JSONArray currentBufferedEditsLog = new JSONArray();
+		for (String editsLog : editsLogs) {
+			currentBufferedEditsLog.add(JSONObject.parseObject(editsLog));
+		}
+		int fetchCount = fetchedEditsLog.size();
+
+		// 此时就可以从刚刚内存缓冲里的数据开始取数据了
+		int fetchSize = Math.min(BACKUP_NODE_FETCH_SIZE, currentBufferedEditsLog.size());
+
+		for (int i = 0; i < fetchSize; i++) {
+			if (currentBufferedEditsLog.getJSONObject(i).getLong("txid") > fetchTxid) {
+				fetchedEditsLog.add(currentBufferedEditsLog.getJSONObject(i));
+				fetchTxid = currentBufferedEditsLog.getJSONObject(i).getLong("txid");
+				fetchCount++;
+			}
+			if (fetchCount == BACKUP_NODE_FETCH_SIZE) {
+				break;
+			}
+		}
+		return fetchTxid;
 	}
 }

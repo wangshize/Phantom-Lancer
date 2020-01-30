@@ -32,3 +32,10 @@ message ShutdownRequest{
 message ShutdownResponse{
     int32 status  = 1;
 }
+message FetchEditsLogRequest{
+    int64 editsLogTxId  = 1;
+    int32 expectFetchSize  = 2;
+}
+message FetchEditsLogResponse{
+    string editsLog = 1;
+}

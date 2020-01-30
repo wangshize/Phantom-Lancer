@@ -3,6 +3,11 @@ package com.github.dfs.namenode.server;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
 	 * 内存双缓冲
@@ -37,6 +42,8 @@ public class DoubleBuffer {
 	 */
 	private long lastMaxTxid;
 
+	private List<FlushedFileMapper> txidFileMappers = new CopyOnWriteArrayList<>();
+
 	/**
 	 * 将edits log写到内存缓冲里去
 	 * @param log
@@ -67,19 +74,25 @@ public class DoubleBuffer {
 	}
 
 	/**
-	 * 获取sync buffer缓冲区里的最大的一个txid
-	 * @return
-	 */
-//	public Long getSyncMaxTxid() {
-//		return syncBuffer.getLast().txid;
-//	}
-
-	/**
 	 * 将syncBuffer缓冲区中的数据刷入磁盘中
 	 */
 	public void flush() throws IOException {
 		syncBuffer.flush();
 		syncBuffer.clear();
+	}
+
+	/**
+	 * 已落盘的txid和文件路径映射
+	 * @return
+	 */
+	public List<FlushedFileMapper> getTxidFileMapper() {
+		return txidFileMappers;
+	}
+
+	public String[] getBufferEditsLog() {
+		String editslogRawData = new String(currentBuffer.getBufferData());
+		String[] splitedEditslogRawData = editslogRawData.split("\n");
+		return splitedEditslogRawData;
 	}
 
 	/**
@@ -109,15 +122,16 @@ public class DoubleBuffer {
 
 		public void flush() throws IOException {
 			ByteBuffer byteBuffer = ByteBuffer.wrap(buffer.toByteArray());
-
-			try(RandomAccessFile file = new RandomAccessFile(editelogPath +
-					"edits-log-" + ++lastMaxTxid + "-" + endTxid + ".log", "rw");
+			long startLastMaxTxid = lastMaxTxid + 1;
+			String filePath = editelogPath +
+					"edits-log-" + startLastMaxTxid + "-" + endTxid + ".log";
+			try(RandomAccessFile file = new RandomAccessFile(filePath, "rw");
 				FileOutputStream fout = new FileOutputStream(file.getFD());
 				FileChannel logFileChannel = fout.getChannel()) {
-
 				logFileChannel.write(byteBuffer);
 				//强制刷盘
 				logFileChannel.force(false);
+				txidFileMappers.add(new FlushedFileMapper(startLastMaxTxid, endTxid, filePath));
 			} catch (IOException e) {
 				throw e;
 			}
@@ -126,6 +140,10 @@ public class DoubleBuffer {
 
 		public void clear() {
 			buffer.reset();
+		}
+
+		public byte[] getBufferData() {
+			return buffer.toByteArray();
 		}
 	}
 

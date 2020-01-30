@@ -39,7 +39,11 @@ public class FSNamesystem {
 		this.editlog.flushForce();
 	}
 
-	class EditLog {
+	public FSEditlog getEditlog() {
+		return editlog;
+	}
+
+	private class EditLog {
 		FileOP OP;
 		String path;
 
