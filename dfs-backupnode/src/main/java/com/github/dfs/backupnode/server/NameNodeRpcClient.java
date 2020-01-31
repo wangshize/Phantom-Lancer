@@ -20,6 +20,8 @@ public class NameNodeRpcClient {
     private static final String NAMENODE_HOSTNAME = "localhost";
     private static final Integer NAMENODE_PORT = 50070;
 
+    public static final Integer BACKUP_NODE_FETCH_SIZE = 100;
+
     private NameNodeServiceGrpc.NameNodeServiceBlockingStub namenode;
 
     public NameNodeRpcClient() {
@@ -33,6 +35,7 @@ public class NameNodeRpcClient {
     public List<EditLog> fetchEditsLog(Long fetchedTxIdBegin) {
         FetchEditsLogRequest request = FetchEditsLogRequest.newBuilder()
                 .setEditsLogTxId(fetchedTxIdBegin)
+                .setExpectFetchSize(BACKUP_NODE_FETCH_SIZE)
                 .build();
         FetchEditsLogResponse response = namenode.fetchEditsLog(request);
         String content = response.getEditsLog();

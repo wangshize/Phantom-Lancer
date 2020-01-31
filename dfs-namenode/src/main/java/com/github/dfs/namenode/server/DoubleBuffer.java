@@ -3,10 +3,8 @@ package com.github.dfs.namenode.server;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -44,6 +42,24 @@ public class DoubleBuffer {
 
 	private List<FlushedFileMapper> txidFileMappers = new CopyOnWriteArrayList<>();
 
+	public DoubleBuffer() {
+		initFileMappers();
+	}
+
+	private void initFileMappers() {
+		File editsLogDir = new File(editelogPath);
+		File[] editsLogs = editsLogDir.listFiles();
+		Arrays.sort(editsLogs);
+		for (File editsLog : editsLogs) {
+			String fileName = editsLog.getName();
+			fileName = fileName.substring(0, fileName.lastIndexOf("."));
+			String[] fileNameSplited = fileName.split("-");
+			long startTxid = Long.valueOf(fileNameSplited[0]);
+			long endTxid = Long.valueOf(fileNameSplited[1]);
+			String filePath = editsLog.getPath();
+			txidFileMappers.add(new FlushedFileMapper(startTxid, endTxid, filePath));
+		}
+	}
 	/**
 	 * 将edits log写到内存缓冲里去
 	 * @param log
@@ -124,7 +140,7 @@ public class DoubleBuffer {
 			ByteBuffer byteBuffer = ByteBuffer.wrap(buffer.toByteArray());
 			long startLastMaxTxid = lastMaxTxid + 1;
 			String filePath = editelogPath +
-					"edits-log-" + startLastMaxTxid + "-" + endTxid + ".log";
+					startLastMaxTxid + "-" + endTxid + ".log";
 			try(RandomAccessFile file = new RandomAccessFile(filePath, "rw");
 				FileOutputStream fout = new FileOutputStream(file.getFD());
 				FileChannel logFileChannel = fout.getChannel()) {

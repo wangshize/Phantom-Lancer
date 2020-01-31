@@ -25,6 +25,7 @@ public class BackupNode {
         fetcher.start();
 
         FsImageCheckpointer checkpointer = new FsImageCheckpointer(this, namesystem);
+        checkpointer.start();
     }
 
     public void run() throws Exception {

@@ -1,7 +1,5 @@
 package com.github.dfs.backupnode.server;
 
-import com.alibaba.fastjson.JSONObject;
-
 import java.util.List;
 
 /**
@@ -33,18 +31,19 @@ public class EditsLogFetcher extends Thread {
     @Override
     public void run() {
         while (backupNode.isRunning()) {
-            List<EditLog> editLogs = nameNode.fetchEditsLog(fetchedEditsLogTxId);
+            List<EditLog> editLogs = nameNode.fetchEditsLog(fetchedEditsLogTxId + 1);
+            System.out.println("从namenode拉取到的数量：" + editLogs.size());
             try {
                 if(editLogs.isEmpty()) {
                     Thread.sleep(1000);
                     continue;
                 }
                 for (EditLog editLog : editLogs) {
-                    JSONObject log = JSONObject.parseObject(editLog.getContent());
-                    String op = log.getString("OP");
+                    String op = editLog.getoP();
                     if(op.equals("MKDIR")) {
-                        String path = log.getString("PATH");
+                        String path = editLog.getPath();
                         namesystem.mkdir(editLog.getTxid(), path);
+                        fetchedEditsLogTxId = editLog.getTxid();
                     }
                 }
             } catch (Exception e) {

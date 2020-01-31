@@ -42,7 +42,6 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 
 	private volatile boolean isRunning = true;
 
-	public static final Integer BACKUP_NODE_FETCH_SIZE = 10;
 
 	public NameNodeServiceImpl(
 			FSNamesystem namesystem, 
@@ -150,6 +149,8 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	@Override
 	public void fetchEditsLog(FetchEditsLogRequest request, StreamObserver<FetchEditsLogResponse> responseObserver) {
 		long expectBeginTxid = request.getEditsLogTxId();
+		System.out.println("期望txid = " + expectBeginTxid + " 开始拉取数据");
+		int expectFetchSize = request.getExpectFetchSize();
 		FetchEditsLogResponse response = null;
 		JSONArray fetchedEditsLog = new JSONArray();
 
@@ -157,7 +158,7 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 		//表示此时没有任何数据写入磁盘
 		if(txidFileMappers.isEmpty()) {
 			List<String> bufferedEditsLog = namesystem.getEditlog().getBufferEdisLog();
-			fullFetchedEditLog(fetchedEditsLog, bufferedEditsLog, expectBeginTxid);
+			fullFetchedEditLog(fetchedEditsLog, bufferedEditsLog, expectBeginTxid, expectFetchSize);
 		} else {
 			boolean isTxidOnFile = false;
 			String filePath = null;
@@ -176,10 +177,10 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 				//一个edits log文件包含的数据足够本次拉取
 				try {
 					List<String> editsLogs = Files.readAllLines(Paths.get(filePath), StandardCharsets.UTF_8);
-					expectBeginTxid = fullFetchedEditLog(fetchedEditsLog, editsLogs, expectBeginTxid);
+					expectBeginTxid = fullFetchedEditLog(fetchedEditsLog, editsLogs, expectBeginTxid, expectFetchSize);
 					//是否需要继续拉取下一个文件的数据
 					int fetchCount = fetchedEditsLog.size();
-					while (fetchCount < BACKUP_NODE_FETCH_SIZE) {
+					while (fetchCount < expectFetchSize) {
 						if(txidFileMappers.size() >= mapperIndex + 1) {
 							//已经没有更多落盘的eitslog文件
 							break;
@@ -187,7 +188,7 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 						FlushedFileMapper nextMapper = txidFileMappers.get(++mapperIndex);
 						String nextFilePath = nextMapper.getFilePath();
 						editsLogs = Files.readAllLines(Paths.get(nextFilePath), StandardCharsets.UTF_8);
-						expectBeginTxid = fullFetchedEditLog(fetchedEditsLog, editsLogs, expectBeginTxid);
+						expectBeginTxid = fullFetchedEditLog(fetchedEditsLog, editsLogs, expectBeginTxid, expectFetchSize);
 						fetchCount = fetchedEditsLog.size();
 					}
 				} catch (IOException e) {
@@ -196,9 +197,9 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 			}
 			//情况2、拉取的txid已经比磁盘文件里的全部都新，还在内存缓冲
 			int fetchCount = fetchedEditsLog.size();
-			if(fetchCount < BACKUP_NODE_FETCH_SIZE) {
+			if(fetchCount < expectFetchSize) {
 				List<String> bufferedEditsLog = namesystem.getEditlog().getBufferEdisLog();
-				fullFetchedEditLog(fetchedEditsLog, bufferedEditsLog, expectBeginTxid);
+				fullFetchedEditLog(fetchedEditsLog, bufferedEditsLog, expectBeginTxid, expectFetchSize);
 			}
 		}
 		response = FetchEditsLogResponse.newBuilder()
@@ -216,24 +217,27 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	 * @param expectBeginTxid
 	 * @return 本次填充进来的最大txid
 	 */
-	private long fullFetchedEditLog(JSONArray fetchedEditsLog, List<String> editsLogs, long expectBeginTxid) {
+	private long fullFetchedEditLog(JSONArray fetchedEditsLog, List<String> editsLogs,
+									long expectBeginTxid, int expectFetchSize) {
 		long fetchTxid = expectBeginTxid;
 		JSONArray currentBufferedEditsLog = new JSONArray();
 		for (String editsLog : editsLogs) {
-			currentBufferedEditsLog.add(JSONObject.parseObject(editsLog));
+			if(editsLog.length() > 0) {
+				currentBufferedEditsLog.add(JSONObject.parseObject(editsLog));
+			}
 		}
 		int fetchCount = fetchedEditsLog.size();
 
 		// 此时就可以从刚刚内存缓冲里的数据开始取数据了
-		int fetchSize = Math.min(BACKUP_NODE_FETCH_SIZE, currentBufferedEditsLog.size());
+		int fetchSize = Math.min(expectFetchSize, currentBufferedEditsLog.size());
 
-		for (int i = 0; i < fetchSize; i++) {
-			if (currentBufferedEditsLog.getJSONObject(i).getLong("txid") > fetchTxid) {
+		for (int i = 0; i < currentBufferedEditsLog.size(); i++) {
+			if (currentBufferedEditsLog.getJSONObject(i).getLong("txid") >= fetchTxid) {
 				fetchedEditsLog.add(currentBufferedEditsLog.getJSONObject(i));
 				fetchTxid = currentBufferedEditsLog.getJSONObject(i).getLong("txid");
 				fetchCount++;
 			}
-			if (fetchCount == BACKUP_NODE_FETCH_SIZE) {
+			if (fetchCount == fetchSize) {
 				break;
 			}
 		}

@@ -1,18 +1,10 @@
 package com.github.dfs.backupnode.server;
 
-import com.alibaba.fastjson.JSONObject;
-
 public class EditLog {
 
 	long txid;
-	String content;
-
-	public EditLog(long txid, String content) {
-		this.txid = txid;
-		JSONObject jsonObject = JSONObject.parseObject(content);
-		jsonObject.put("txid", this.txid);
-		this.content = jsonObject.toJSONString();
-	}
+	String path;
+	String oP;
 
 	public long getTxid() {
 		return txid;
@@ -22,19 +14,19 @@ public class EditLog {
 		this.txid = txid;
 	}
 
-	public String getContent() {
-		return content;
+	public String getPath() {
+		return path;
 	}
 
-	public void setContent(String content) {
-		this.content = content;
+	public void setPath(String path) {
+		this.path = path;
 	}
 
-	@Override
-	public String toString() {
-		return "EditLog{" +
-				"txid=" + txid +
-				", content='" + content + '\'' +
-				'}';
+	public String getoP() {
+		return oP;
+	}
+
+	public void setoP(String oP) {
+		this.oP = oP;
 	}
 }
