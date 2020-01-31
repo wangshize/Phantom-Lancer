@@ -44,7 +44,7 @@ public class EditsLogFetcher extends Thread {
                     String op = log.getString("OP");
                     if(op.equals("MKDIR")) {
                         String path = log.getString("PATH");
-                        namesystem.mkdir(path);
+                        namesystem.mkdir(editLog.getTxid(), path);
                     }
                 }
             } catch (Exception e) {

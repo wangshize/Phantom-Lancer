@@ -21,9 +21,13 @@ public class FSNamesystem {
 	 * @param path 目录路径
 	 * @return 是否成功
 	 */
-	public Boolean mkdir(String path) throws Exception {
-		this.directory.mkdir(path);
+	public Boolean mkdir(long txid, String path) throws Exception {
+		this.directory.mkdir(txid, path);
 		return true;
+	}
+
+	public FSImage getFSImageJson() {
+		return directory.getFSImage();
 	}
 
 }

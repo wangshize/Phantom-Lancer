@@ -1,7 +1,11 @@
 package com.github.dfs.backupnode.server;
 
+import com.alibaba.fastjson.JSON;
+
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * 负责管理内存中的文件目录树的核心组件
@@ -14,16 +18,36 @@ public class FSDirectory {
 	 * 内存中的文件目录树
 	 */
 	private INodeDirectory dirTree;
-	
+
+	private long maxTxid;
+
+	private ReadWriteLock lock = new ReentrantReadWriteLock();
+
 	public FSDirectory() {
 		this.dirTree = new INodeDirectory("/");  
+	}
+
+	/**
+	 * 获取文件目录树数据 json格式
+	 * @return
+	 */
+	public FSImage getFSImage() {
+		try {
+			lock.readLock().lock();
+			String fsimageJson = JSON.toJSONString(dirTree);
+			FSImage fsImage = new FSImage(maxTxid, fsimageJson);
+			//这里还需要当前文件目录树里最大的txid，这样才能去将该txid之前的edits log删除
+			return fsImage;
+		} finally {
+			lock.readLock().unlock();
+		}
 	}
 	
 	/**
 	 * 创建目录
 	 * @param path 目录路径
 	 */
-	public void mkdir(String path) {
+	public void mkdir(long txid, String path) {
 		// path = /usr/warehouse/hive
 		// 先判断一下，“/”根目录下有没有一个“usr”目录的存在
 		// 如果说有的话，那么再判断一下，“/usr”目录下，有没有一个“/warehouse”目录的存在
@@ -31,7 +55,8 @@ public class FSDirectory {
 		// 接着再对“/hive”这个目录创建一个节点挂载上去
 
 		//内存数据结构，更新的时候必须加锁
-		synchronized(dirTree) {
+		try {
+			lock.writeLock().lock();
 			String[] pathes = path.split("/");
 			INodeDirectory parent = dirTree;
 			
@@ -50,8 +75,10 @@ public class FSDirectory {
 				parent.addChild(child);
 				parent = child;
 			}
+			maxTxid = txid;
+		} finally {
+			lock.writeLock().unlock();
 		}
-//		printDirTree(dirTree, "-");
 	}
 
 	public void remove(String path) {
