@@ -19,6 +19,11 @@ public class NameNode {
 	 * NameNode对外提供rpc接口的server，可以响应请求
 	 */
 	private NameNodeRpcServer rpcServer;
+
+	/**
+	 * 接收fsImage文件的组件
+	 */
+	private FSImageUploadServer fsImageUploadServer;
 	
 	/**
 	 * 初始化NameNode
@@ -26,15 +31,17 @@ public class NameNode {
 	private void initialize() throws Exception {
 		this.namesystem = new FSNamesystem();
 		this.datanodeManager = new DataNodeManager();
-		this.rpcServer = new NameNodeRpcServer(this.namesystem, this.datanodeManager); 
+		this.rpcServer = new NameNodeRpcServer(this.namesystem, this.datanodeManager);
+		this.fsImageUploadServer = new FSImageUploadServer();
 	}
 	
 	/**
 	 * 让NameNode运行起来
 	 */
 	private void start() throws Exception {
+		this.fsImageUploadServer.start();
 		this.rpcServer.start();
-		this.rpcServer.blockUntilShutdown();  
+		this.rpcServer.blockUntilShutdown();
 	}
 		
 	public static void main(String[] args) throws Exception {		

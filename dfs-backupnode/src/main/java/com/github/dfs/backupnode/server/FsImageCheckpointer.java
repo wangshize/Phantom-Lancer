@@ -41,23 +41,27 @@ public class FsImageCheckpointer extends Thread {
                }
                System.out.println("开始执行checkpoint操作");
                removeLastFSImageFile();
-               String filePath = fsImagePath + "fsImage-" + fsImage.getMaxTxid() + ".meta";
-               lastFSImageFile = fsImageJson;
-               removeLastFSImageFile();
-               try(RandomAccessFile file = new RandomAccessFile(filePath, "rw");
-                   FileOutputStream fout = new FileOutputStream(file.getFD());
-                   FileChannel logFileChannel = fout.getChannel()) {
-                   ByteBuffer byteBuffer = ByteBuffer.wrap(fsImageJson.getBytes());
-                   logFileChannel.write(byteBuffer);
-                   //强制刷盘
-                   logFileChannel.force(false);
-                   removeLastFSImageFile();
-               } catch (IOException e) {
-                   throw e;
-               }
+               writeFSImageFile(fsImage);
+               uploadFSImageFile(fsImage);
            } catch (Exception e) {
                e.printStackTrace();
            }
+        }
+    }
+
+    private void writeFSImageFile(FSImage fsImage) throws IOException {
+        String fsImageJson = fsImage.getFsImageJson();
+        String filePath = fsImagePath + "fsImage-" + fsImage.getMaxTxid() + ".meta";
+        lastFSImageFile = fsImageJson;
+        try(RandomAccessFile file = new RandomAccessFile(filePath, "rw");
+            FileOutputStream fout = new FileOutputStream(file.getFD());
+            FileChannel logFileChannel = fout.getChannel()) {
+            ByteBuffer byteBuffer = ByteBuffer.wrap(fsImageJson.getBytes());
+            logFileChannel.write(byteBuffer);
+            //强制刷盘
+            logFileChannel.force(false);
+        } catch (IOException e) {
+            throw e;
         }
     }
 
@@ -66,5 +70,10 @@ public class FsImageCheckpointer extends Thread {
         if(file.exists()) {
             file .delete();
         }
+    }
+
+    private void uploadFSImageFile(FSImage fsimage) throws Exception {
+        FSImageUploader fsimageUploader = new FSImageUploader(fsimage);
+        fsimageUploader.start();
     }
 }

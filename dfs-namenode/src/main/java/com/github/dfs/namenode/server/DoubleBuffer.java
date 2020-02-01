@@ -51,6 +51,9 @@ public class DoubleBuffer {
 		File[] editsLogs = editsLogDir.listFiles();
 		Arrays.sort(editsLogs);
 		for (File editsLog : editsLogs) {
+			if(!editsLog.isFile()) {
+				continue;
+			}
 			String fileName = editsLog.getName();
 			fileName = fileName.substring(0, fileName.lastIndexOf("."));
 			String[] fileNameSplited = fileName.split("-");

@@ -23,6 +23,8 @@ public class FSDirectory {
 
 	private ReadWriteLock lock = new ReentrantReadWriteLock();
 
+	private boolean isDirTreeChange = false;
+
 	public FSDirectory() {
 		this.dirTree = new INodeDirectory("/");  
 	}
@@ -76,6 +78,7 @@ public class FSDirectory {
 				parent = child;
 			}
 			maxTxid = txid;
+			isDirTreeChange = true;
 		} finally {
 			lock.writeLock().unlock();
 		}
@@ -116,8 +119,8 @@ public class FSDirectory {
 		
 		return null;
 	}
-	
-	
+
+
 	/**
 	 * 代表的是文件目录树中的一个节点
 	 * @author zhonghuashishan

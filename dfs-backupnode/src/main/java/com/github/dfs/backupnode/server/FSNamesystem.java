@@ -30,4 +30,6 @@ public class FSNamesystem {
 		return directory.getFSImage();
 	}
 
+
+
 }
