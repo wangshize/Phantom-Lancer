@@ -131,9 +131,11 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	 */
 	@Override
 	public void shutdown(ShutdownRequest request, StreamObserver<ShutdownResponse> responseObserver) {
+		System.out.println("正在关闭namenode......");
 		this.isRunning = false;
 		this.namesystem.flushForce();
-		System.out.println("正在关闭namenode完成");
+		//save checkPointTxId
+		this.namesystem.getEditlog().saveCheckPointTxId();
 		ShutdownResponse response = ShutdownResponse.newBuilder()
 				.setStatus(STATUS_SUCCESS)
 				.build();
@@ -148,6 +150,14 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	 */
 	@Override
 	public void fetchEditsLog(FetchEditsLogRequest request, StreamObserver<FetchEditsLogResponse> responseObserver) {
+		if(!isRunning) {
+			FetchEditsLogResponse response = FetchEditsLogResponse.newBuilder()
+					.setStatus(STATUS_SHUTDOWN)
+					.build();
+
+			responseObserver.onNext(response);
+			responseObserver.onCompleted();
+		}
 		long expectBeginTxid = request.getEditsLogTxId();
 		System.out.println("期望txid = " + expectBeginTxid + " 开始拉取数据");
 		int expectFetchSize = request.getExpectFetchSize();
@@ -206,6 +216,23 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 				.setEditsLog(fetchedEditsLog.toJSONString())
 				.build();
 
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
+
+	/**
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void updateCheckPointTxId(CheckPointTxIdRequest request, StreamObserver<CheckPointTxIdResponse> responseObserver) {
+
+		long checkPointTxId = request.getTxId();
+		namesystem.updateCheckPointTxId(checkPointTxId);
+
+		CheckPointTxIdResponse response = CheckPointTxIdResponse.newBuilder()
+				.setCode(STATUS_SUCCESS)
+				.build();
 		responseObserver.onNext(response);
 		responseObserver.onCompleted();
 	}

@@ -8,6 +8,7 @@ public class BackupNode {
 
     private volatile boolean isRunning = true;
     private FSNamesystem namesystem;
+    private NameNodeRpcClient rpcClient;
 
     public static void main(String[] args) throws Exception {
         BackupNode backupNode = new BackupNode();
@@ -17,14 +18,15 @@ public class BackupNode {
     }
 
     public void init() {
-        this.namesystem = new FSNamesystem();;
+        this.namesystem = new FSNamesystem();
+        this.rpcClient = new NameNodeRpcClient();
     }
 
     public void start() throws Exception {
-        EditsLogFetcher fetcher = new EditsLogFetcher(this, namesystem);
+        EditsLogFetcher fetcher = new EditsLogFetcher(this, namesystem, rpcClient);
         fetcher.start();
 
-        FsImageCheckpointer checkpointer = new FsImageCheckpointer(this, namesystem);
+        FsImageCheckpointer checkpointer = new FsImageCheckpointer(this, namesystem, rpcClient);
         checkpointer.start();
     }
 

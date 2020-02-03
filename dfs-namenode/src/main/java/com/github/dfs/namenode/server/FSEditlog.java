@@ -1,10 +1,13 @@
 package com.github.dfs.namenode.server;
 
+import com.github.dfs.namenode.IOUitls;
+import com.github.dfs.namenode.NameNodeConstants;
+
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 负责管理edits log日志的核心组件
@@ -13,10 +16,14 @@ import java.util.Map;
  */
 public class FSEditlog {
 
+	private static final long EDIT_LOG_CLEAN_INTERVAL = 30 * 1000;
+
 	/**
 	 * 当前递增到的txid的序号
 	 */
 	private long txidSeq = 0L;
+
+	private long checkPointTxId;
 	/**
 	 * 内存双缓冲区
 	 */
@@ -37,6 +44,11 @@ public class FSEditlog {
 	 * 每个线程自己本地的txid副本
 	 */
 	private ThreadLocal<Long> localTxid = new ThreadLocal<Long>();
+
+	public FSEditlog() {
+		EditLogCleaner cleaner = new EditLogCleaner();
+		cleaner.start();
+	}
 
 	/**
 	 * 记录edits log日志
@@ -95,14 +107,6 @@ public class FSEditlog {
 
 			// 如果说当前正好有人在刷内存缓冲到磁盘中去
 			if(isSyncRunning) {
-				// 那么此时这里应该有一些逻辑判断
-				
-				// 假如说某个线程已经把txid = 1,2,3,4,5的edits log都从syncBuffer刷入磁盘了
-				// 或者说此时正在刷入磁盘中
-				// 此时syncTxid = 5，代表的是正在输入磁盘的最大txid
-				// 那么这个时候来一个线程，他对应的txid = 3，此时他是可以直接返回了
-				// 就代表说肯定是他对应的edits log已经被别的线程在刷入磁盘了
-				// 这个时候txid = 3的线程就不需要等待了
 				if(txid <= syncTxid) {
 					return;
 				}
@@ -159,6 +163,14 @@ public class FSEditlog {
 		}
 	}
 
+	public void saveCheckPointTxId() {
+		try {
+			IOUitls.wiriteFile(NameNodeConstants.checkPointTxIdPath, String.valueOf(checkPointTxId).getBytes());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	/**
 	 * 已落盘的txid和文件路径映射
 	 * @return
@@ -172,5 +184,51 @@ public class FSEditlog {
 			return Arrays.asList(editLogBuffer.getBufferEditsLog());
 		}
 	}
-	
+
+	public void setCheckPointTxId(long checkPointTxId) {
+		this.checkPointTxId = checkPointTxId;
+	}
+
+	public long getCheckPointTxId() {
+		return checkPointTxId;
+	}
+
+	/**
+	 * 自动清理editlog文件
+	 */
+	class EditLogCleaner extends Thread {
+
+		@Override
+		public void run() {
+			System.out.println("启动editlog日志文件线程启动。。。。。。");
+			while (true) {
+				try {
+					Thread.sleep(EDIT_LOG_CLEAN_INTERVAL);
+					List<FlushedFileMapper> mappers = getTxidFileMapper();
+					if(mappers == null || mappers.isEmpty()) {
+						continue;
+					}
+					List<FlushedFileMapper> notExpire = new ArrayList<>();
+					for (FlushedFileMapper mapper : mappers) {
+						if(mapper.getEndTxid() <= checkPointTxId) {
+							File file = new File(mapper.getFilePath());
+							System.out.println("文件已过期，path = " + mapper.getFilePath());
+							if(file.exists()) {
+								file.delete();
+							}
+
+						} else {
+							notExpire.add(mapper);
+						}
+					}
+					if(notExpire.size() != getTxidFileMapper().size()) {
+						//TODO 说明有需要删除的映射对象
+
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
 }

@@ -1,7 +1,7 @@
 package com.github.dfs.backupnode.server;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
+import com.github.dfs.namenode.rpc.model.CheckPointTxIdRequest;
 import com.github.dfs.namenode.rpc.model.FetchEditsLogRequest;
 import com.github.dfs.namenode.rpc.model.FetchEditsLogResponse;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
@@ -9,6 +9,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -22,6 +23,10 @@ public class NameNodeRpcClient {
 
     public static final Integer BACKUP_NODE_FETCH_SIZE = 100;
 
+    public static final Integer STATUS_SUCCESS = 1;
+    public static final Integer STATUS_FAILURE = 2;
+    public static final Integer STATUS_SHUTDOWN = 3;
+
     private NameNodeServiceGrpc.NameNodeServiceBlockingStub namenode;
 
     public NameNodeRpcClient() {
@@ -32,13 +37,32 @@ public class NameNodeRpcClient {
         this.namenode = NameNodeServiceGrpc.newBlockingStub(channel);
     }
 
-    public List<EditLog> fetchEditsLog(Long fetchedTxIdBegin) {
+    public FetchEditsLogResult fetchEditsLog(Long fetchedTxIdBegin) {
+        FetchEditsLogResult result = new FetchEditsLogResult();
+        result.setStatus(STATUS_SUCCESS);
         FetchEditsLogRequest request = FetchEditsLogRequest.newBuilder()
                 .setEditsLogTxId(fetchedTxIdBegin)
                 .setExpectFetchSize(BACKUP_NODE_FETCH_SIZE)
                 .build();
         FetchEditsLogResponse response = namenode.fetchEditsLog(request);
+        if(response.getStatus() == STATUS_SHUTDOWN) {
+            result.setStatus(STATUS_SHUTDOWN);
+            result.setEditLogs(Collections.emptyList());
+            return result;
+        }
         String content = response.getEditsLog();
-        return JSON.parseArray(content, EditLog.class);
+        if(content.length() == 0) {
+            result.setEditLogs(Collections.emptyList());
+            return result;
+        }
+        result.setEditLogs(JSON.parseArray(content, EditLog.class));
+        return result;
+    }
+
+    public void updateCheckPointTxId(long updateTxId) {
+        CheckPointTxIdRequest request = CheckPointTxIdRequest.newBuilder()
+                .setTxId(updateTxId)
+                .build();
+        namenode.updateCheckPointTxId(request);
     }
 }

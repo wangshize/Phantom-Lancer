@@ -16,8 +16,6 @@ import java.util.Iterator;
  **/
 public class FSImageUploadServer extends Thread {
 
-    private static final String fsimageFilePath = "/Users/wangsz/SourceCode/editslog/fsimage/fsimage.meta";
-
     private Selector selector;
 
     public FSImageUploadServer() {
@@ -112,11 +110,11 @@ public class FSImageUploadServer extends Thread {
             int count = -1;
             ByteBuffer buffer = ByteBuffer.allocate(1024);
             if((count = channel.read(buffer)) > 0){
-                File file = new File(fsimageFilePath);
+                File file = new File(NameNodeConstants.fsimageFilePath);
                 if(file.exists()) {
                     file.delete();
                 }
-                try(RandomAccessFile fsimageImageRAF = new RandomAccessFile(fsimageFilePath, "rw");
+                try(RandomAccessFile fsimageImageRAF = new RandomAccessFile(NameNodeConstants.fsimageFilePath, "rw");
                      FileOutputStream fsimageOut = new FileOutputStream(fsimageImageRAF.getFD());
                      FileChannel fsimageFileChannel = fsimageOut.getChannel()) {
 

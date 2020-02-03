@@ -46,6 +46,7 @@ public class FSImageUploader extends Thread {
                         socketChannel = (SocketChannel) key.channel();
                         if(socketChannel.isConnectionPending()) {
                             socketChannel.finishConnect();
+
                             ByteBuffer byteBuffer = ByteBuffer.wrap(fsimage.getFsImageJson().getBytes());
                             System.out.println("准备上传fsimage文件数据，大小为：" + byteBuffer.capacity());
                             socketChannel.write(byteBuffer);

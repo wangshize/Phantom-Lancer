@@ -4,7 +4,7 @@ public class EditLog {
 
 	long txid;
 	String path;
-	String oP;
+	String opration;
 
 	public long getTxid() {
 		return txid;
@@ -22,11 +22,11 @@ public class EditLog {
 		this.path = path;
 	}
 
-	public String getoP() {
-		return oP;
+	public String getOpration() {
+		return opration;
 	}
 
-	public void setoP(String oP) {
-		this.oP = oP;
+	public void setOpration(String opration) {
+		this.opration = opration;
 	}
 }

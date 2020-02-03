@@ -18,9 +18,10 @@ public class EditsLogFetcher extends Thread {
      */
     private long fetchedEditsLogTxId;
 
-    public EditsLogFetcher(BackupNode backupNode, FSNamesystem namesystem) {
+    public EditsLogFetcher(BackupNode backupNode, FSNamesystem namesystem,
+                           NameNodeRpcClient nameNode) {
         this.backupNode = backupNode;
-        this.nameNode = new NameNodeRpcClient();
+        this.nameNode = nameNode;
         this.namesystem = namesystem;
     }
 
@@ -31,15 +32,24 @@ public class EditsLogFetcher extends Thread {
     @Override
     public void run() {
         while (backupNode.isRunning()) {
-            List<EditLog> editLogs = nameNode.fetchEditsLog(fetchedEditsLogTxId + 1);
+            FetchEditsLogResult result = nameNode.fetchEditsLog(fetchedEditsLogTxId + 1);
+            List<EditLog> editLogs = result.getEditLogs();
             System.out.println("从namenode拉取到的数量：" + editLogs.size());
             try {
+                if(result.getStatus() == 3) {
+                    System.out.println("namenode暂不可用，改变标志位，一秒后重试。。。。。。");
+                    namesystem.setNameNodeRunning(false);
+                    Thread.sleep(1000);
+                    continue;
+                } else if (result.getStatus() == 1) {
+                    namesystem.setNameNodeRunning(true);
+                }
                 if(editLogs.isEmpty()) {
                     Thread.sleep(1000);
                     continue;
                 }
                 for (EditLog editLog : editLogs) {
-                    String op = editLog.getoP();
+                    String op = editLog.getOpration();
                     if(op.equals("MKDIR")) {
                         String path = editLog.getPath();
                         namesystem.mkdir(editLog.getTxid(), path);

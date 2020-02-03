@@ -22,6 +22,11 @@
     		<version>${rpc.version}</version>
     	</dependency>
 		<dependency>
+			<groupId>com.github.dfs</groupId>
+			<artifactId>dfs-common</artifactId>
+			<version>${rpc.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>io.grpc</groupId>
 			<artifactId>grpc-core</artifactId>
 		</dependency>

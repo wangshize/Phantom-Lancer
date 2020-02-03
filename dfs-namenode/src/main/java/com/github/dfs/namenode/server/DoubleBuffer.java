@@ -1,8 +1,11 @@
 package com.github.dfs.namenode.server;
 
-import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
+import com.github.dfs.namenode.IOUitls;
+import com.github.dfs.namenode.NameNodeConstants;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -13,13 +16,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 	 *
 	 */
 public class DoubleBuffer {
-
-	private static final String editelogPath = "/Users/wangsz/SourceCode/editslog/";
-
-	/**
-	 * 单块缓冲区大小 512kb
-	 */
-	private Integer EDIT_LOG_BUFFER_LIMIT = 25 * 1024;
 
 	/**
 	 * 是专门用来承载线程写入edits log
@@ -42,27 +38,6 @@ public class DoubleBuffer {
 
 	private List<FlushedFileMapper> txidFileMappers = new CopyOnWriteArrayList<>();
 
-	public DoubleBuffer() {
-		initFileMappers();
-	}
-
-	private void initFileMappers() {
-		File editsLogDir = new File(editelogPath);
-		File[] editsLogs = editsLogDir.listFiles();
-		Arrays.sort(editsLogs);
-		for (File editsLog : editsLogs) {
-			if(!editsLog.isFile()) {
-				continue;
-			}
-			String fileName = editsLog.getName();
-			fileName = fileName.substring(0, fileName.lastIndexOf("."));
-			String[] fileNameSplited = fileName.split("-");
-			long startTxid = Long.valueOf(fileNameSplited[0]);
-			long endTxid = Long.valueOf(fileNameSplited[1]);
-			String filePath = editsLog.getPath();
-			txidFileMappers.add(new FlushedFileMapper(startTxid, endTxid, filePath));
-		}
-	}
 	/**
 	 * 将edits log写到内存缓冲里去
 	 * @param log
@@ -77,7 +52,7 @@ public class DoubleBuffer {
 	 * @return
 	 */
 	public boolean shouldSyncToDisk() {
-		if(currentBuffer.size() >= EDIT_LOG_BUFFER_LIMIT) {
+		if(currentBuffer.size() >= NameNodeConstants.EDIT_LOG_BUFFER_LIMIT) {
 			return true;
 		}
 		return false;
@@ -124,7 +99,7 @@ public class DoubleBuffer {
 		private long endTxid;
 
 		public EditLogBuffer() {
-			buffer = new ByteArrayOutputStream(EDIT_LOG_BUFFER_LIMIT * 2);
+			buffer = new ByteArrayOutputStream(NameNodeConstants.EDIT_LOG_BUFFER_LIMIT * 2);
 		}
 
 		public void write(EditLog log) throws IOException {
@@ -140,22 +115,15 @@ public class DoubleBuffer {
 		}
 
 		public void flush() throws IOException {
-			ByteBuffer byteBuffer = ByteBuffer.wrap(buffer.toByteArray());
 			long startLastMaxTxid = lastMaxTxid + 1;
-			String filePath = editelogPath +
+			String filePath = NameNodeConstants.editelogPath +
 					startLastMaxTxid + "-" + endTxid + ".log";
-			try(RandomAccessFile file = new RandomAccessFile(filePath, "rw");
-				FileOutputStream fout = new FileOutputStream(file.getFD());
-				FileChannel logFileChannel = fout.getChannel()) {
-				logFileChannel.write(byteBuffer);
-				//强制刷盘
-				logFileChannel.force(false);
-				txidFileMappers.add(new FlushedFileMapper(startLastMaxTxid, endTxid, filePath));
-			} catch (IOException e) {
-				throw e;
-			}
+			IOUitls.wiriteFile(filePath, buffer.toByteArray());
+			txidFileMappers.add(new FlushedFileMapper(startLastMaxTxid, endTxid, filePath));
 			lastMaxTxid = endTxid;
 		}
+
+
 
 		public void clear() {
 			buffer.reset();
