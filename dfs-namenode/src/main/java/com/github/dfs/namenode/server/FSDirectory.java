@@ -2,6 +2,8 @@ package com.github.dfs.namenode.server;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * 负责管理内存中的文件目录树的核心组件
@@ -14,6 +16,12 @@ public class FSDirectory {
 	 * 内存中的文件目录树
 	 */
 	private INode dirTree;
+
+	private volatile boolean isDirTreeChange = false;
+
+	private long maxTxid;
+
+	private ReadWriteLock lock = new ReentrantReadWriteLock();
 	
 	public FSDirectory() {
 		this.dirTree = new INode("/");
@@ -51,6 +59,62 @@ public class FSDirectory {
 				parent = child;
 			}
 		}
+	}
+
+	/**
+	 * 创建文件
+	 * @param fileName
+	 * @return
+	 */
+	public Boolean create(String fileName) {
+
+		synchronized (dirTree) {
+			String[] splitedFilename = fileName.split("/");
+			String realFilename = splitedFilename[splitedFilename.length - 1];
+			INode parent = dirTree;
+
+			for(int i = 0; i < splitedFilename.length - 1; i++) {
+				if(i == 0) {
+					continue;
+				}
+
+				INode dir = findDirectory(parent, splitedFilename[i]);
+				if(dir != null) {
+					parent = dir;
+					continue;
+				}
+
+				INode child = new INode(splitedFilename[i]);
+				parent.addChild(child);
+				parent = child;
+			}
+			//此时parent = 文件的上一级目录
+			List<INode> fileNodes = parent.getChildren();
+			if(existFile(parent, realFilename)) {
+				return false;
+			}
+			// 真正的在目录里创建一个文件出来
+			INode file = new INode(realFilename);
+			parent.addChild(file);
+			return true;
+		}
+	}
+
+	/**
+	 * 目录下是否存在这个文件
+	 * @param dir
+	 * @param filename
+	 * @return
+	 */
+	private Boolean existFile(INode dir, String filename) {
+		if(dir.getChildren() != null && dir.getChildren().size() > 0) {
+			for(INode child : dir.getChildren()) {
+				if(child.getPath().equals(filename)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public void remove(String path) {

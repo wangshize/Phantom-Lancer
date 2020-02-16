@@ -10,7 +10,6 @@ import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 
 import java.util.Collections;
-import java.util.List;
 
 /**
  * @author wangsz

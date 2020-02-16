@@ -1,4 +1,4 @@
-package com.github.dfs.namenode.server;
+package com.github.dfs.client;
 
 import lombok.Getter;
 import lombok.Setter;

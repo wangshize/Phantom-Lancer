@@ -49,10 +49,12 @@ public class EditsLogFetcher extends Thread {
                     continue;
                 }
                 for (EditLog editLog : editLogs) {
-                    String op = editLog.getOpration();
-                    if(op.equals("MKDIR")) {
-                        String path = editLog.getPath();
-                        namesystem.mkdir(editLog.getTxid(), path);
+                    EditLog.FileOP op = editLog.getOpration();
+                    if(op.equals(EditLog.FileOP.MKDIR)) {
+                        namesystem.mkdir(editLog);
+                        fetchedEditsLogTxId = editLog.getTxid();
+                    } else if(op.equals(EditLog.FileOP.MKDIR)) {
+                        namesystem.create(editLog);
                         fetchedEditsLogTxId = editLog.getTxid();
                     }
                 }

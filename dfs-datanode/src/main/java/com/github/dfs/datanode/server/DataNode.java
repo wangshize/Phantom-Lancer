@@ -22,7 +22,10 @@ public class DataNode {
 	private void initialize() {
 		this.shouldRun = true;
 		this.offerService = new NameNodeOfferService();
-		this.offerService.start();  
+		this.offerService.start();
+
+		DataNodeNIOServer nioServer = new DataNodeNIOServer();
+		nioServer.start();
 	}
 	
 	/**

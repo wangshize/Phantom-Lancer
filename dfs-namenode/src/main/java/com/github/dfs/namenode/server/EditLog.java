@@ -1,45 +1,45 @@
 package com.github.dfs.namenode.server;
 
-import com.alibaba.fastjson.JSONObject;
+import lombok.Data;
 
 /**
  * 代表了一条edits log
  * @author zhonghuashishan
  *
  */
+@Data
 public class EditLog {
 
+	FileOP opration;
 	long txid;
-	String content;
+	String path;
 
-	public EditLog(long txid, String content) {
-		this.txid = txid;
-		JSONObject jsonObject = JSONObject.parseObject(content);
-		jsonObject.put("txid", this.txid);
-		this.content = jsonObject.toJSONString();
+	public static EditLog builder() {
+		return new EditLog();
 	}
 
-	public long getTxid() {
-		return txid;
+	public EditLog opration(FileOP opration) {
+		this.setOpration(opration);
+		return this;
 	}
 
-	public void setTxid(long txid) {
-		this.txid = txid;
+	public EditLog txid(long txid) {
+		this.setTxid(txid);
+		return this;
 	}
 
-	public String getContent() {
-		return content;
+	public EditLog path(String path) {
+		this.setPath(path);
+		return this;
 	}
 
-	public void setContent(String content) {
-		this.content = content;
+	public EditLog build() {
+		return this;
 	}
 
-	@Override
-	public String toString() {
-		return "EditLog{" +
-				"txid=" + txid +
-				", content='" + content + '\'' +
-				'}';
+	enum FileOP {
+		MKDIR,
+		REMOVE,
+		CREATE;
 	}
 }

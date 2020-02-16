@@ -1,5 +1,7 @@
 package com.github.dfs.namenode.server;
 
+import com.github.dfs.namenode.NameNodeConstants;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;

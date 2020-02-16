@@ -1,32 +1,40 @@
 package com.github.dfs.backupnode.server;
 
+import lombok.Data;
+
+@Data
 public class EditLog {
 
+	FileOP opration;
 	long txid;
 	String path;
-	String opration;
 
-	public long getTxid() {
-		return txid;
+	public static EditLog builder() {
+		return new EditLog();
 	}
 
-	public void setTxid(long txid) {
-		this.txid = txid;
+	public EditLog opration(FileOP opration) {
+		this.setOpration(opration);
+		return this;
 	}
 
-	public String getPath() {
-		return path;
+	public EditLog txid(long txid) {
+		this.setTxid(txid);
+		return this;
 	}
 
-	public void setPath(String path) {
-		this.path = path;
+	public EditLog path(String path) {
+		this.setPath(path);
+		return this;
 	}
 
-	public String getOpration() {
-		return opration;
+	public EditLog build() {
+		return this;
 	}
 
-	public void setOpration(String opration) {
-		this.opration = opration;
+	enum FileOP {
+		MKDIR,
+		REMOVE,
+		CREATE;
 	}
 }

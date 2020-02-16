@@ -1,5 +1,6 @@
 package com.github.dfs.namenode.server;
 
+import com.alibaba.fastjson.JSON;
 import com.github.dfs.namenode.IOUitls;
 import com.github.dfs.namenode.NameNodeConstants;
 
@@ -104,7 +105,7 @@ public class DoubleBuffer {
 
 		public void write(EditLog log) throws IOException {
 			endTxid = log.getTxid();
-			buffer.write(log.getContent().getBytes());
+			buffer.write(JSON.toJSONString(log).getBytes());
 			buffer.write("\n".getBytes());
 			System.out.println("写入log：" + log.toString());
 			System.out.println("当前缓冲区的大小：" + size());

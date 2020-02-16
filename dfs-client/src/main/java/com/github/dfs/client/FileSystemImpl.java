@@ -1,12 +1,13 @@
 package com.github.dfs.client;
 
-import com.github.dfs.namenode.rpc.model.MkdirRequest;
-import com.github.dfs.namenode.rpc.model.MkdirResponse;
-import com.github.dfs.namenode.rpc.model.ShutdownRequest;
+import com.alibaba.fastjson.JSONArray;
+import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
+
+import java.util.List;
 
 /**
  * 文件系统客户端的实现类
@@ -32,6 +33,7 @@ public class FileSystemImpl implements FileSystem {
      * 创建目录
      * @param path 文件路径
      */
+    @Override
     public void mkdir(String path) {
         MkdirRequest request = MkdirRequest.newBuilder()
                 .setPath(path)
@@ -46,5 +48,35 @@ public class FileSystemImpl implements FileSystem {
                 .setCode(1)
                 .build();
         namenode.shutdown(request);
+    }
+
+    @Override
+    public void upload(byte[] file, String fileName, long fileSize) throws Exception {
+        //1、先向namenode节点创建一个文件目录路径
+        //需要查重，如果存在了即不允许上传
+        CreateFileRequest request = CreateFileRequest.newBuilder()
+                .setFileName(fileName)
+                .build();
+        CreateFileResponse response = namenode.createFile(request);
+        System.out.println(Thread.currentThread().getName() + "上传文件，查重创建文件结果 = " + response.getStatus());
+        //2、找namenode要多个数据节点的地址，因为需要向多个数据节点上传数据
+        //尽可能在分配数据节点的时候，保证每个数据节点的数据量是均衡的
+        AllocateDataNodesRequest dataNodesRequest = AllocateDataNodesRequest.newBuilder()
+                .setFileName(fileName)
+                .setFileSize(fileSize)
+                .build();
+        AllocateDataNodesResponse allocateDataNodesResponse = namenode.allocateDataNodesFile(dataNodesRequest);
+        String dataNodesJson = allocateDataNodesResponse.getDatanodes();
+        System.out.println(dataNodesJson);
+        //3、依次吧文件上传到数据节点，
+        // 需要考虑如果上传过程中，某个节点上传失败的容错机制
+        List<DataNodeInfo> datanodes = JSONArray.parseArray(dataNodesJson, DataNodeInfo.class);
+        for (int i = 0; i < datanodes.size(); i++) {
+            DataNodeInfo datanode = datanodes.get(i);
+            String hostName = datanode.getHostname();
+            int nioPort = datanode.getNioPort();
+            NIOClient.sendFile(hostName, nioPort, file, fileSize, fileName);
+        }
+
     }
 }

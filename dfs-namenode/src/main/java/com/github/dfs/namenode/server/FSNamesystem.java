@@ -1,6 +1,5 @@
 package com.github.dfs.namenode.server;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.github.dfs.namenode.NameNodeConstants;
 
@@ -44,10 +43,31 @@ public class FSNamesystem {
 	 */
 	public Boolean mkdir(String path) throws Exception {
 		this.directory.mkdir(path);
-		EditLog log = new EditLog(FileOP.MKDIR, path);
-		this.editlog.logEdit(JSON.toJSONString(log));
+		EditLog log = EditLog.builder()
+				.opration(EditLog.FileOP.MKDIR)
+				.path(path)
+				.build();
+		this.editlog.logEdit(log);
 		return true;
 	}
+
+    /**
+     * 创建文件
+     * @param fileName  文件名，包含绝对路径：/productes/iamge01.jpg
+     * @return
+     * @throws Exception
+     */
+	public Boolean create(String fileName) throws Exception {
+        if(!directory.create(fileName)) {
+            return false;
+        }
+        EditLog log = EditLog.builder()
+				.opration(EditLog.FileOP.CREATE)
+				.path(fileName)
+				.build();
+        this.editlog.logEdit(log);
+	    return true;
+    }
 
 	public void updateCheckPointTxId(long checkPointTxId) {
 		System.out.println("接收到checkpoint txid = " + checkPointTxId);
@@ -135,50 +155,6 @@ public class FSNamesystem {
 
 	public FSEditlog getEditlog() {
 		return editlog;
-	}
-
-	public static class EditLog {
-		FileOP opration;
-		long txid;
-		String path;
-
-		public EditLog() {
-		}
-
-		public EditLog(FileOP opration, String path) {
-			this.opration = opration;
-			this.path = path;
-		}
-
-		public FileOP getOpration() {
-			return opration;
-		}
-
-		public void setOpration(FileOP opration) {
-			this.opration = opration;
-		}
-
-		public long getTxid() {
-			return txid;
-		}
-
-		public void setTxid(long txid) {
-			this.txid = txid;
-		}
-
-		public String getPath() {
-			return path;
-		}
-
-		public void setPath(String path) {
-			this.path = path;
-		}
-	}
-
-	enum FileOP {
-		MKDIR,
-		REMOVE,
-		CREATE;
 	}
 
 }

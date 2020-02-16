@@ -9,4 +9,6 @@ public interface FileSystem {
     void mkdir(String path);
 
     void shutdown();
+
+    void upload(byte[] file, String fileName, long fileSize) throws Exception;
 }

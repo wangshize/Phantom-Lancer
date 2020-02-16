@@ -25,11 +25,17 @@ public class FSNamesystem {
 	
 	/**
 	 * 创建目录
-	 * @param path 目录路径
 	 * @return 是否成功
 	 */
-	public Boolean mkdir(long txid, String path) throws Exception {
-		this.directory.mkdir(txid, path);
+	public Boolean mkdir(EditLog log) throws Exception {
+		this.directory.mkdir(log);
+		return true;
+	}
+
+	public Boolean create(EditLog log) throws Exception {
+		if(!directory.create(log)) {
+			return false;
+		}
 		return true;
 	}
 

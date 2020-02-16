@@ -6,10 +6,14 @@ package com.github.dfs.namenode;
  **/
 public class NameNodeConstants {
 
+    public static final int DUPLICATE_DATANODE_NUM = 2;
+
     /**
      * 单块缓冲区大小 512kb
      */
     public static final Integer EDIT_LOG_BUFFER_LIMIT = 25 * 1024;
+
+    public static final String imagePath = "/Users/wangsz/SourceCode/fsimage/";
 
     public static final String fsimageFilePath = "/Users/wangsz/SourceCode/editslog/fsimage/fsimage.meta";
 

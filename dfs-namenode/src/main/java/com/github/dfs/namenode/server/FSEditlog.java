@@ -52,9 +52,9 @@ public class FSEditlog {
 
 	/**
 	 * 记录edits log日志
-	 * @param content
+	 * @param editLog
 	 */
-	public void logEdit(String content) {
+	public void logEdit(EditLog editLog) {
 		// 这里必须得直接加锁
 		synchronized(this) {
 			//检查是否正在调度刷盘操作，目的是为了交换两块缓冲区
@@ -66,11 +66,11 @@ public class FSEditlog {
 			localTxid.set(txid); // 放到ThreadLocal里去，相当于就是维护了一份本地线程的副本
 			
 			// 构造一条edits log对象
-			EditLog log = new EditLog(txid, content); 
+			editLog.setTxid(txid);
 			
 			// 将edits log写入内存缓冲中，不是直接刷入磁盘文件
 			try {
-				editLogBuffer.write(log);
+				editLogBuffer.write(editLog);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

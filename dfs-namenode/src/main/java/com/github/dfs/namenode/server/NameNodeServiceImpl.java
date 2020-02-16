@@ -1,22 +1,16 @@
 package com.github.dfs.namenode.server;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
-
 import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * NameNode的rpc服务的接口
@@ -68,7 +62,7 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	@Override
 	public void register(RegisterRequest request, 
 			StreamObserver<RegisterResponse> responseObserver) {
-		datanodeManager.register(request.getIp(), request.getHostname());
+		datanodeManager.register(request.getIp(), request.getHostname(), request.getNioPort());
 		
 		RegisterResponse response = RegisterResponse.newBuilder()
 				.setStatus(STATUS_SUCCESS)
@@ -122,6 +116,29 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	@Override
+	public void createFile(CreateFileRequest request, StreamObserver<CreateFileResponse> responseObserver) {
+		String fileName = request.getFileName();
+		//先查重后创建
+		//多线程情况下，查重和创建必须在一个同步代码块中
+		int status;
+		try {
+			if(namesystem.create(fileName)){
+				status = 1;
+			} else {
+				status =2;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			status = 3;
+		}
+		CreateFileResponse response = CreateFileResponse.newBuilder()
+				.setStatus(status)
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
 	}
 
 	/**
@@ -232,6 +249,24 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 
 		CheckPointTxIdResponse response = CheckPointTxIdResponse.newBuilder()
 				.setCode(STATUS_SUCCESS)
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
+
+	/**
+	 * 为文件上传请求分配数据节点，来传输多个副本
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void allocateDataNodesFile(AllocateDataNodesRequest request, StreamObserver<AllocateDataNodesResponse> responseObserver) {
+		//取出所有datanode，选择数据量最少的两个datanode，将文件上传到这两个节点
+		long fileSize = request.getFileSize();
+		List<DataNodeInfo> datanodes = datanodeManager.allocateDataNodes(fileSize);
+
+		AllocateDataNodesResponse response = AllocateDataNodesResponse.newBuilder()
+				.setDatanodes(JSONObject.toJSONString(datanodes))
 				.build();
 		responseObserver.onNext(response);
 		responseObserver.onCompleted();
