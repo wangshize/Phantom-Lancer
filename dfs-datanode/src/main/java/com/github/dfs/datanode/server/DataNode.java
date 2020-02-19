@@ -1,5 +1,7 @@
 package com.github.dfs.datanode.server;
 
+import com.github.dfs.namenode.RegisterResult;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,9 +28,9 @@ public class DataNode {
 	private void initialize() throws Exception {
 		this.shouldRun = true;
 		this.nameNodeRpcClient = new NameNodeRpcClient();
-		int registerResult = this.nameNodeRpcClient.register();
+		RegisterResult registerResult = this.nameNodeRpcClient.register();
 		this.nameNodeRpcClient.startHeartbeat();
-		if(registerResult == 1) {
+		if(registerResult.equals(RegisterResult.SUCCESS)) {
 			//启动时全量上传文件副本信息
 			StorageInfo storageInfo = getStorageInfo();
 			if(storageInfo != null) {

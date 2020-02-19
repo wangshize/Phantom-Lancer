@@ -1,6 +1,7 @@
 package com.github.dfs.namenode.server;
 
 import com.github.dfs.namenode.NameNodeConstants;
+import com.github.dfs.namenode.RegisterResult;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,14 +28,14 @@ public class DataNodeManager {
 	 * @param ip 
 	 * @param hostname
 	 */
-	public int register(String ip, String hostname, Integer nioPort) {
+	public RegisterResult register(String ip, String hostname, Integer nioPort) {
 		if(datanodes.containsKey(createDataNodeKey(ip, hostname))) {
-			return 2;
+			return RegisterResult.REPEAT;
 		}
 		DataNodeInfo datanode = new DataNodeInfo(ip, hostname, nioPort);
 		datanodes.put(createDataNodeKey(ip, hostname), datanode);
 		System.out.println("DataNode注册：ip=" + ip + ",hostname=" + hostname + ",nioPort=" + nioPort);
-		return 1;
+		return RegisterResult.SUCCESS;
 	}
 
 	private String createDataNodeKey(String ip, String hostname) {

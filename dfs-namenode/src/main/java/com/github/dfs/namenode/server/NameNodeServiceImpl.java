@@ -2,6 +2,7 @@ package com.github.dfs.namenode.server;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.github.dfs.namenode.RegisterResult;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 import io.grpc.stub.StreamObserver;
@@ -62,11 +63,10 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	@Override
 	public void register(RegisterRequest request, 
 			StreamObserver<RegisterResponse> responseObserver) {
-		int registerResult = datanodeManager.register(request.getIp(), request.getHostname(), request.getNioPort());
+		RegisterResult registerResult = datanodeManager.register(request.getIp(), request.getHostname(), request.getNioPort());
 
-		int status = registerResult == 1 ? STATUS_SUCCESS:STATUS_FAILURE;
 		RegisterResponse response = RegisterResponse.newBuilder()
-				.setStatus(status)
+				.setStatus(registerResult.getStatus())
 				.build();
 
 		responseObserver.onNext(response);

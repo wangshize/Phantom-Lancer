@@ -2,6 +2,7 @@ package com.github.dfs.datanode.server;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.github.dfs.namenode.RegisterResult;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 
@@ -43,7 +44,7 @@ public class NameNodeRpcClient {
 	 *
 	 * 1:注册成功 2-重复注册
 	 */
-	public int register() throws Exception {
+	public RegisterResult register() throws Exception {
 		// 发送rpc接口调用请求到NameNode去进行注册
 		System.out.println("发送RPC请求到NameNode进行注册.......");
 
@@ -54,8 +55,9 @@ public class NameNodeRpcClient {
 				.setNioPort(NIO_PORT)
 				.build();
 		RegisterResponse response = namenode.register(request);
-		System.out.println("接收到NameNode返回的注册响应：" + response.getStatus());
-		return response.getStatus();
+		RegisterResult registerResult = RegisterResult.fromCode(response.getStatus());
+		System.out.println("接收到NameNode返回的注册响应：" + registerResult.getDesc());
+		return registerResult;
 	}
 	
 	/**
