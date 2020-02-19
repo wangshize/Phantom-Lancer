@@ -101,6 +101,14 @@ public class FSDirectory {
 	}
 
 	/**
+	 * 添加文件的相关信息
+	 * @param fileName
+	 */
+	public void addRecivedReplica(String fileName) {
+
+	}
+
+	/**
 	 * 目录下是否存在这个文件
 	 * @param dir
 	 * @param filename

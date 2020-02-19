@@ -12,6 +12,12 @@
     <artifactId>dfs-common</artifactId>
     <version>${common.version}</version>
     <packaging>jar</packaging>
+    <dependencies>
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>

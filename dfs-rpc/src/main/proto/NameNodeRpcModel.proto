@@ -69,3 +69,22 @@ message AllocateDataNodesRequest{
 message AllocateDataNodesResponse{
     string datanodes = 1;
 }
+//上报文件副本信息
+message InformReplicaReceivedRequest{
+    string ip = 1;
+    string hostname = 2;
+    string filename = 3;
+}
+message InformReplicaReceivedResponse{
+    int32 status = 1;
+}
+//上报完整文件副本信息
+message ReportCompleteStorageInfoRequest{
+    string ip = 1;
+    string hostname = 2;
+    string filenames = 3;
+    int64 storedDataSize = 4;
+}
+message ReportCompleteStorageInfoResponse{
+    int32 status = 1;
+}

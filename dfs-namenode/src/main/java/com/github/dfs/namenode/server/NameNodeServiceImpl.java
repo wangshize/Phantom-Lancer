@@ -62,10 +62,11 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	@Override
 	public void register(RegisterRequest request, 
 			StreamObserver<RegisterResponse> responseObserver) {
-		datanodeManager.register(request.getIp(), request.getHostname(), request.getNioPort());
-		
+		int registerResult = datanodeManager.register(request.getIp(), request.getHostname(), request.getNioPort());
+
+		int status = registerResult == 1 ? STATUS_SUCCESS:STATUS_FAILURE;
 		RegisterResponse response = RegisterResponse.newBuilder()
-				.setStatus(STATUS_SUCCESS)
+				.setStatus(status)
 				.build();
 
 		responseObserver.onNext(response);
@@ -267,6 +268,52 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 
 		AllocateDataNodesResponse response = AllocateDataNodesResponse.newBuilder()
 				.setDatanodes(JSONObject.toJSONString(datanodes))
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
+
+	/**
+     * 数据节点通知接收到的文件信息
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void informReplicaReceived(InformReplicaReceivedRequest request, StreamObserver<InformReplicaReceivedResponse> responseObserver) {
+		String fileName = request.getFilename();
+		String hostName = request.getHostname();
+		String ip = request.getIp();
+
+		//处理文件副本信息
+        namesystem.addRecivedReplica(fileName, hostName, ip);
+
+		InformReplicaReceivedResponse response = InformReplicaReceivedResponse.newBuilder()
+				.setStatus(STATUS_SUCCESS)
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
+
+	/**
+	 * 全量上报文件存储信息
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void reportCompleteStorageInfo(ReportCompleteStorageInfoRequest request, StreamObserver<ReportCompleteStorageInfoResponse> responseObserver) {
+		String ip = request.getIp();
+		String hostName = request.getHostname();
+		String fileNames = request.getFilenames();
+		long storedDataSIze = request.getStoredDataSize();
+
+		datanodeManager.setStoredDataSize(ip, hostName, storedDataSIze);
+		List<String> fileNameList = JSONObject.parseArray(fileNames, String.class);
+		for (String fileName : fileNameList) {
+			namesystem.addRecivedReplica(fileName, hostName, ip);
+		}
+		ReportCompleteStorageInfoResponse response = ReportCompleteStorageInfoResponse
+				.newBuilder()
+				.setStatus(STATUS_SUCCESS)
 				.build();
 		responseObserver.onNext(response);
 		responseObserver.onCompleted();

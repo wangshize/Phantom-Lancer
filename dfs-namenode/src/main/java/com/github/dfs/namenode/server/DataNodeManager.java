@@ -27,11 +27,22 @@ public class DataNodeManager {
 	 * @param ip 
 	 * @param hostname
 	 */
-	public Boolean register(String ip, String hostname, Integer nioPort) {
+	public int register(String ip, String hostname, Integer nioPort) {
+		if(datanodes.containsKey(createDataNodeKey(ip, hostname))) {
+			return 2;
+		}
 		DataNodeInfo datanode = new DataNodeInfo(ip, hostname, nioPort);
-		datanodes.put(ip + "-" + hostname, datanode);  
+		datanodes.put(createDataNodeKey(ip, hostname), datanode);
 		System.out.println("DataNode注册：ip=" + ip + ",hostname=" + hostname + ",nioPort=" + nioPort);
-		return true;
+		return 1;
+	}
+
+	private String createDataNodeKey(String ip, String hostname) {
+		return ip + "-" + hostname;
+	}
+
+	public DataNodeInfo getDataNodeInfo(String ip, String hostname) {
+		return datanodes.get(createDataNodeKey(ip, hostname));
 	}
 
 	/**
@@ -63,10 +74,15 @@ public class DataNodeManager {
 	 * @return
 	 */
 	public Boolean heartbeat(String ip, String hostname) {
-		DataNodeInfo datanode = datanodes.get(ip + "-" + hostname);
+		DataNodeInfo datanode = datanodes.get(createDataNodeKey(ip, hostname));
 		datanode.setLatestHeartbeatTime(System.currentTimeMillis());  
 		System.out.println("DataNode发送心跳：ip=" + ip + ",hostname=" + hostname);
 		return true;
+	}
+
+	public void setStoredDataSize(String ip, String hostname, long dataSize) {
+		DataNodeInfo dataNodeInfo = datanodes.get(createDataNodeKey(ip, hostname));
+		dataNodeInfo.setStoredDataSize(dataSize);
 	}
 	
 	/**
@@ -87,7 +103,7 @@ public class DataNodeManager {
 					while(datanodesIterator.hasNext()) {
 						datanode = datanodesIterator.next();
 						if(System.currentTimeMillis() - datanode.getLatestHeartbeatTime() > 90 * 1000) {
-							toRemoveDatanodes.add(datanode.getIp() + "-" + datanode.getHostname());
+							toRemoveDatanodes.add(createDataNodeKey(datanode.getIp(), datanode.getHostname()));
 						}
 					}
 					

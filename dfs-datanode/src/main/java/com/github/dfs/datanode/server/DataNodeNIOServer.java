@@ -2,7 +2,6 @@ package com.github.dfs.datanode.server;
 
 
 import com.github.dfs.namenode.ByteUtils;
-import com.github.dfs.namenode.NameNodeConstants;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -19,13 +18,16 @@ public class DataNodeNIOServer extends Thread {
 
     private Selector selector;
 
+    private NameNodeRpcClient nameNodeRpcClient;
+
     private List<LinkedBlockingQueue<SelectionKey>> queues =
             new ArrayList<>();
+    //未读取完成的文件缓存
     private Map<String, CachedImage> cachedImages = new HashMap<>();
 
-    public DataNodeNIOServer(){
+    public DataNodeNIOServer(NameNodeRpcClient nameNodeRpcClient){
         ServerSocketChannel serverSocketChannel = null;
-
+        this.nameNodeRpcClient = nameNodeRpcClient;
         try {
             selector = Selector.open();
 
@@ -122,10 +124,9 @@ public class DataNodeNIOServer extends Thread {
                     System.out.println("接收到客户端请求：" + remoteAddr);
                     ByteBuffer buffer = ByteBuffer.allocate(10 * 1024);
 
-                    String filename = null;
-                    filename = getFileName(channel, buffer);
-                    System.out.println("解析出文件名：" + filename);
-                    if(filename == null) {
+                    Filename fileName = getFileName(channel, buffer);
+                    System.out.println("解析出文件名：" + fileName.absoluteFilename);
+                    if(fileName == null) {
                         channel.close();
                         continue;
                     }
@@ -134,7 +135,7 @@ public class DataNodeNIOServer extends Thread {
                     System.out.println("解析出文件大小：" + imageLength);
                     long hasReadImageLength = getHasReadImageLength(channel);
                     System.out.println("初始化已经读取的文件大小：" + hasReadImageLength);
-                    FileOutputStream imageOut = new FileOutputStream(filename);
+                    FileOutputStream imageOut = new FileOutputStream(fileName.absoluteFilename);
                     FileChannel imageChannel = imageOut.getChannel();
                     imageChannel.position(imageChannel.size());
 
@@ -165,16 +166,18 @@ public class DataNodeNIOServer extends Thread {
                     imageChannel.close();
                     imageOut.close();
 
-                    // 判断一下，如果已经读取完毕，就返回一个成功给客户端
+                    // 如果已经读取完毕，就返回一个成功给客户端
                     if(hasReadImageLength == imageLength) {
                         ByteBuffer outBuffer = ByteBuffer.wrap("SUCCESS".getBytes());
                         channel.write(outBuffer);
                         cachedImages.remove(remoteAddr);
                         System.out.println("文件读取完毕，返回响应给客户端: " + remoteAddr);
+                        //增量上报给namenode，接收到的文件信息
+                        nameNodeRpcClient.informReplicaReceived(fileName.relativeFilename, DataNodeConfig.DATANODE_HOSTNAME, DataNodeConfig.DATANODE_IP);
                     }
                     // 如果一个文件没有读完，缓存起来，等待下一次读取
                     else {
-                        CachedImage cachedImage = new CachedImage(filename, imageLength, hasReadImageLength);
+                        CachedImage cachedImage = new CachedImage(fileName, imageLength, hasReadImageLength);
                         cachedImages.put(remoteAddr, cachedImage);
                         key.interestOps(SelectionKey.OP_READ);
                         System.out.println("文件没有读取完毕，等待下一次OP_READ请求，缓存文件：" + cachedImage);
@@ -222,26 +225,26 @@ public class DataNodeNIOServer extends Thread {
         return hasReadImageLength;
     }
 
-    private String getFileName(SocketChannel channel, ByteBuffer buffer) throws Exception {
-        String filename = null;
+    private Filename getFileName(SocketChannel channel, ByteBuffer buffer) throws Exception {
+        Filename filename = new Filename();
         String remoteAddr = channel.getRemoteAddress().toString();
 
         if(cachedImages.containsKey(remoteAddr)) {
             filename = cachedImages.get(remoteAddr).filename;
         } else {
-            filename = getFilenameFromChannel(channel, buffer);
+            String relativeFilename = getFilenameFromChannel(channel, buffer);
             if(filename == null) {
                 return null;
             }
+            filename.relativeFilename = relativeFilename;
             // /image/product/iphone.jpg
             //NameNodeConstants.imagePath + DataNodeConfig.DATANODE_HOSTNAME
-            String[] filenameSplited = filename.split("/");
+            String[] relativeFilenameSplited = relativeFilename.split("/");
 
-            StringBuilder sbDirPath = new StringBuilder(NameNodeConstants.imagePath)
-                    .append(DataNodeConfig.DATANODE_HOSTNAME);
-            for(int i = 0; i < filenameSplited.length - 1; i++) {
+            StringBuilder sbDirPath = new StringBuilder(DataNodeConfig.DATANODE_FILE_PATH);
+            for(int i = 0; i < relativeFilenameSplited.length - 1; i++) {
                 sbDirPath.append("/")
-                        .append(filenameSplited[i]);
+                        .append(relativeFilenameSplited[i]);
             }
 
             File dir = new File(sbDirPath.toString());
@@ -249,10 +252,11 @@ public class DataNodeNIOServer extends Thread {
                 dir.mkdirs();
             }
 
-            filename = sbDirPath
+            String absoluteFilename = sbDirPath
                     .append("/")
-                    .append(filenameSplited[filenameSplited.length - 1])
+                    .append(relativeFilenameSplited[relativeFilenameSplited.length - 1])
                     .toString();
+            filename.absoluteFilename = absoluteFilename;
         }
 
         return filename;
@@ -275,13 +279,32 @@ public class DataNodeNIOServer extends Thread {
         return null;
     }
 
+    /**
+     * 文件名
+     * @author zhonghuashishan
+     *
+     */
+    class Filename {
+
+        // 相对路径名
+        String relativeFilename;
+        // 绝对路径名
+        String absoluteFilename;
+
+        @Override
+        public String toString() {
+            return "Filename [relativeFilename=" + relativeFilename + ", absoluteFilename=" + absoluteFilename + "]";
+        }
+
+    }
+
     class CachedImage {
 
-        String filename;
+        Filename filename;
         long imageLength;
         long hasReadImageLength;
 
-        public CachedImage(String filename, long imageLength, long hasReadImageLength) {
+        public CachedImage(Filename filename, long imageLength, long hasReadImageLength) {
             this.filename = filename;
             this.imageLength = imageLength;
             this.hasReadImageLength = hasReadImageLength;

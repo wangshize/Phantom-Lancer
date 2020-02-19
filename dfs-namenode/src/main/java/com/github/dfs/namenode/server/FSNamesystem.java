@@ -11,8 +11,11 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 负责管理元数据的核心组件
@@ -29,10 +32,19 @@ public class FSNamesystem {
 	 * 负责管理edits log写入磁盘的组件
 	 */
 	private FSEditlog editlog;
-	
-	public FSNamesystem() {
+
+	/**
+	 * 每个文件对应的副本所在的DataNode
+	 */
+	private Map<String, List<DataNodeInfo>> replicasByFilename =
+			new ConcurrentHashMap<>();
+
+	private DataNodeManager dataNodeManager;
+
+	public FSNamesystem(DataNodeManager dataNodeManager) {
 		this.directory = new FSDirectory();
 		this.editlog = new FSEditlog();
+		this.dataNodeManager = dataNodeManager;
 		receoverDirectory();
 	}
 	
@@ -68,6 +80,21 @@ public class FSNamesystem {
         this.editlog.logEdit(log);
 	    return true;
     }
+
+	/**
+	 * 添加文件的相关信息 文件处于哪些datanode节点
+	 * @param fileName
+	 */
+    public void addRecivedReplica(String fileName, String hostName, String ip) {
+		synchronized (fileName) {
+			List<DataNodeInfo> replicas = replicasByFilename.get(fileName);
+			if(replicas == null) {
+				replicasByFilename.put(fileName, new ArrayList<>());
+			}
+			DataNodeInfo dataNodeInfo = dataNodeManager.getDataNodeInfo(ip, hostName);
+			replicas.add(dataNodeInfo);
+		}
+	}
 
 	public void updateCheckPointTxId(long checkPointTxId) {
 		System.out.println("接收到checkpoint txid = " + checkPointTxId);

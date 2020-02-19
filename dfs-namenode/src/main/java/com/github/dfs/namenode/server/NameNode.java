@@ -29,8 +29,8 @@ public class NameNode {
 	 * 初始化NameNode
 	 */
 	private void initialize() throws Exception {
-		this.namesystem = new FSNamesystem();
 		this.datanodeManager = new DataNodeManager();
+		this.namesystem = new FSNamesystem(datanodeManager);
 		this.rpcServer = new NameNodeRpcServer(this.namesystem, this.datanodeManager);
 		this.fsImageUploadServer = new FSImageUploadServer();
 	}

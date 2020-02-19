@@ -1,5 +1,9 @@
 package com.github.dfs.datanode.server;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * DataNode启动类
  * @author zhonghuashishan
@@ -14,18 +18,59 @@ public class DataNode {
 	/**
 	 * 负责跟一组NameNode通信的组件
 	 */
-	private NameNodeOfferService offerService;
+	private NameNodeRpcClient nameNodeRpcClient;
 	
 	/**
 	 * 初始化DataNode
 	 */
-	private void initialize() {
+	private void initialize() throws Exception {
 		this.shouldRun = true;
-		this.offerService = new NameNodeOfferService();
-		this.offerService.start();
+		this.nameNodeRpcClient = new NameNodeRpcClient();
+		int registerResult = this.nameNodeRpcClient.register();
+		this.nameNodeRpcClient.startHeartbeat();
+		if(registerResult == 1) {
+			//启动时全量上传文件副本信息
+			StorageInfo storageInfo = getStorageInfo();
+			if(storageInfo != null) {
+				this.nameNodeRpcClient.reportCompleteStorageInfo(storageInfo);
+			}
+		}
 
-		DataNodeNIOServer nioServer = new DataNodeNIOServer();
+		DataNodeNIOServer nioServer = new DataNodeNIOServer(this.nameNodeRpcClient);
 		nioServer.start();
+	}
+
+	private StorageInfo getStorageInfo() {
+		File dataDir = new File(DataNodeConfig.DATANODE_FILE_PATH);
+		List<File> allFile = scanFiles(dataDir);
+		if(allFile == null || allFile.size() == 0) {
+			return null;
+		}
+		StorageInfo storageInfo = new StorageInfo();
+		List<String> fileList = new ArrayList<>(allFile.size());
+		long storedDataSize = 0;
+		for (File file : allFile) {
+			String path = file.getPath();
+			fileList.add(path.substring(0, DataNodeConfig.DATANODE_FILE_PATH.length()));
+			storedDataSize += file.length();
+		}
+		storageInfo.setFileNames(fileList);
+		storageInfo.setStoredDataSize(storedDataSize);
+		return storageInfo;
+	}
+
+	private static List<File> scanFiles(File dir) {
+		File[] children = dir.listFiles();
+		List<File> fileList = new ArrayList<>();
+		for (File file : children) {
+			if(file.isDirectory()) {
+				fileList.addAll(scanFiles(file));
+			}
+			if(file.isFile()) {
+				fileList.add(file);
+			}
+		}
+		return fileList;
 	}
 	
 	/**
@@ -41,10 +86,11 @@ public class DataNode {
 		}
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		DataNode datanode = new DataNode();
 		datanode.initialize();
-		datanode.run(); 
+		datanode.run();
+
 	}
 	
 }
