@@ -42,6 +42,7 @@ public class DataNode {
 			System.out.println("向NameNode注册失败，直接退出......");
 			System.exit(1);
 		} else if(registerResult.equals(RegisterResult.SUCCESS)) {
+			System.out.println("成功注册，全量上报文件信息");
 			//启动时全量上传文件副本信息
 			StorageInfo storageInfo = storageManager.getStorageInfo();
 			if(storageInfo != null) {

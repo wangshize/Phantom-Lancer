@@ -3,6 +3,7 @@ package com.github.dfs.namenode.server;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.github.dfs.namenode.Command;
+import com.github.dfs.namenode.HeartbeatResult;
 import com.github.dfs.namenode.RegisterResult;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
@@ -66,7 +67,7 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	public void register(RegisterRequest request, 
 			StreamObserver<RegisterResponse> responseObserver) {
 		RegisterResult registerResult = datanodeManager.register(request.getIp(), request.getHostname(), request.getNioPort());
-
+		System.out.println("注册结果：" + registerResult.getDesc());
 		RegisterResponse response = RegisterResponse.newBuilder()
 				.setStatus(registerResult.getStatus())
 				.build();
@@ -88,9 +89,10 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 		HeartbeatResponse response = null;
 		if(result) {
 			response = HeartbeatResponse.newBuilder()
-					.setStatus(STATUS_SUCCESS)
+					.setStatus(HeartbeatResult.SUCCESS.getStatus())
 					.build();
 		} else {
+			System.out.println("心跳失败，找不到对应实例，指示datanode执行重新注册和全量上报命令");
 			Command registerCommand = new Command(Command.REGISTER);
 			Command reportCompleteStorageInfoCommand = new Command(
 					Command.REPORT_COMPLETE_STORAGE_INFO);
@@ -98,7 +100,7 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 			commands.add(reportCompleteStorageInfoCommand);
 
 			response = HeartbeatResponse.newBuilder()
-					.setStatus(STATUS_FAILURE)
+					.setStatus(HeartbeatResult.FAIL.getStatus())
 					.setCommands(JSONArray.toJSONString(commands))
 					.build();
 		}

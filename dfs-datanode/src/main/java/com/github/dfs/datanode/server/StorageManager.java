@@ -22,7 +22,7 @@ public class StorageManager {
 		long storedDataSize = 0;
 		for (File file : allFile) {
 			String path = file.getPath();
-			fileList.add(path.substring(0, DataNodeConfig.DATANODE_FILE_PATH.length()));
+			fileList.add(path.substring(DataNodeConfig.DATANODE_FILE_PATH.length()));
 			storedDataSize += file.length();
 		}
 		storageInfo.setFileNames(fileList);
@@ -38,6 +38,9 @@ public class StorageManager {
 				fileList.addAll(scanFiles(file));
 			}
 			if(file.isFile()) {
+				if(file.getName().equals(".DS_Store")) {
+					continue;
+				}
 				fileList.add(file);
 			}
 		}

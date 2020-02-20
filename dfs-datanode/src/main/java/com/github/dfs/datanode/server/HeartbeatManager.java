@@ -3,6 +3,7 @@ package com.github.dfs.datanode.server;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.github.dfs.namenode.Command;
+import com.github.dfs.namenode.HeartbeatResult;
 import com.github.dfs.namenode.rpc.model.HeartbeatResponse;
 
 import java.util.List;
@@ -36,40 +37,47 @@ public class HeartbeatManager {
 		
 		@Override
 		public void run() {
-			try {
-				System.out.println("定时心跳线程启动......");  
+				System.out.println("定时心跳线程启动......");
 				
 				while(true) {
-					// 通过RPC接口发送到NameNode他的注册接口上去
-					HeartbeatResponse response = namenodeRpcClient.heartbeat();
-					
-					// 如果心跳失败了
-					if(response.getStatus() == 2) {
-						List<Command> commands = JSONArray.parseArray(response.getCommands(), Command.class);
-						
-						for(int i = 0; i < commands.size(); i++) {
-							Command command = commands.get(i);
-							Integer type = command.getType();
-							
-							// 如果是注册的命令
-							if(type.equals(1)) {
-								namenodeRpcClient.register();
-							} 
-							// 如果是全量上报的命令
-							else if(type.equals(2)) {
-								StorageInfo storageInfo = storageManager.getStorageInfo();
-								if(storageInfo != null) {
-									namenodeRpcClient.reportCompleteStorageInfo(storageInfo);  
+					try {
+						// 通过RPC接口发送到NameNode他的注册接口上去
+						HeartbeatResponse response = namenodeRpcClient.heartbeat();
+						HeartbeatResult heartbeatResult = HeartbeatResult.fromCode(response.getStatus());
+						// 如果心跳失败了
+						if (heartbeatResult.equals(HeartbeatResult.FAIL)) {
+							List<Command> commands = JSONArray.parseArray(response.getCommands(), Command.class);
+
+							for (int i = 0; i < commands.size(); i++) {
+								Command command = commands.get(i);
+								Integer type = command.getType();
+
+								// 如果是注册的命令
+								if (type.equals(Command.REGISTER)) {
+									System.out.println("datanode重新注册");
+									namenodeRpcClient.register();
+								}
+								// 如果是全量上报的命令
+								else if (type.equals(Command.REPORT_COMPLETE_STORAGE_INFO)) {
+									System.out.println("全量上报文件信息");
+									StorageInfo storageInfo = storageManager.getStorageInfo();
+									if (storageInfo != null) {
+										namenodeRpcClient.reportCompleteStorageInfo(storageInfo);
+									}
 								}
 							}
 						}
+					} catch (Exception e) {
+						System.out.println("心跳失败。。。。。。");
+						e.printStackTrace();
 					}
 					// 每隔30秒发送一次心跳到NameNode上去
-					Thread.sleep(30 * 1000);
+					try {
+						Thread.sleep(30 * 1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
 		}
 		
 	}

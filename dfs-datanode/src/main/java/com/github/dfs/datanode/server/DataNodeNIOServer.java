@@ -125,11 +125,11 @@ public class DataNodeNIOServer extends Thread {
                     ByteBuffer buffer = ByteBuffer.allocate(10 * 1024);
 
                     Filename fileName = getFileName(channel, buffer);
-                    System.out.println("解析出文件名：" + fileName.absoluteFilename);
                     if(fileName == null) {
                         channel.close();
                         continue;
                     }
+                    System.out.println("解析出文件名：" + fileName.absoluteFilename);
                     //文件大小
                     long imageLength = getImageLength(channel, buffer);
                     System.out.println("解析出文件大小：" + imageLength);
@@ -233,7 +233,7 @@ public class DataNodeNIOServer extends Thread {
             filename = cachedImages.get(remoteAddr).filename;
         } else {
             String relativeFilename = getFilenameFromChannel(channel, buffer);
-            if(filename == null) {
+            if(relativeFilename == null) {
                 return null;
             }
             filename.relativeFilename = relativeFilename;

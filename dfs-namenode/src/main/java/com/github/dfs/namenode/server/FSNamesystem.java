@@ -89,10 +89,12 @@ public class FSNamesystem {
 		synchronized (fileName) {
 			List<DataNodeInfo> replicas = replicasByFilename.get(fileName);
 			if(replicas == null) {
-				replicasByFilename.put(fileName, new ArrayList<>());
+				replicas = new ArrayList<>();
+				replicasByFilename.put(fileName, replicas);
 			}
 			DataNodeInfo dataNodeInfo = dataNodeManager.getDataNodeInfo(ip, hostName);
 			replicas.add(dataNodeInfo);
+			System.out.println("收到增量上报，当前副本信息为：" + replicasByFilename);
 		}
 	}
 
