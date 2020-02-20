@@ -76,6 +76,10 @@ public class DataNodeManager {
 	 */
 	public Boolean heartbeat(String ip, String hostname) {
 		DataNodeInfo datanode = datanodes.get(createDataNodeKey(ip, hostname));
+		if(datanode == null) {
+			//需要重新注册
+			return false;
+		}
 		datanode.setLatestHeartbeatTime(System.currentTimeMillis());  
 		System.out.println("DataNode发送心跳：ip=" + ip + ",hostname=" + hostname);
 		return true;

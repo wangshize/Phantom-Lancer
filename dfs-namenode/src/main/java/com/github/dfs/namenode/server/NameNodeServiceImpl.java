@@ -2,6 +2,7 @@ package com.github.dfs.namenode.server;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.github.dfs.namenode.Command;
 import com.github.dfs.namenode.RegisterResult;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -81,12 +83,26 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	@Override
 	public void heartbeat(HeartbeatRequest request, 
 			StreamObserver<HeartbeatResponse> responseObserver) {
-		datanodeManager.heartbeat(request.getIp(), request.getHostname());
+		boolean result = datanodeManager.heartbeat(request.getIp(), request.getHostname());
+		List<Command> commands = new ArrayList<Command>();
+		HeartbeatResponse response = null;
+		if(result) {
+			response = HeartbeatResponse.newBuilder()
+					.setStatus(STATUS_SUCCESS)
+					.build();
+		} else {
+			Command registerCommand = new Command(Command.REGISTER);
+			Command reportCompleteStorageInfoCommand = new Command(
+					Command.REPORT_COMPLETE_STORAGE_INFO);
+			commands.add(registerCommand);
+			commands.add(reportCompleteStorageInfoCommand);
 
-		HeartbeatResponse response = HeartbeatResponse.newBuilder()
-				.setStatus(STATUS_SUCCESS)
-				.build();
-	
+			response = HeartbeatResponse.newBuilder()
+					.setStatus(STATUS_FAILURE)
+					.setCommands(JSONArray.toJSONString(commands))
+					.build();
+		}
+
 		responseObserver.onNext(response);
 		responseObserver.onCompleted();
 	}

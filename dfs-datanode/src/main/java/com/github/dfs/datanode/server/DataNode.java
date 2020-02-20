@@ -21,6 +21,14 @@ public class DataNode {
 	 * 负责跟一组NameNode通信的组件
 	 */
 	private NameNodeRpcClient nameNodeRpcClient;
+	/**
+	 * 心跳管理组件
+	 */
+	private HeartbeatManager heartbeatManager;
+	/**
+	 * 磁盘存储管理组件
+	 */
+	private StorageManager storageManager;
 	
 	/**
 	 * 初始化DataNode
@@ -28,51 +36,23 @@ public class DataNode {
 	private void initialize() throws Exception {
 		this.shouldRun = true;
 		this.nameNodeRpcClient = new NameNodeRpcClient();
+		this.storageManager = new StorageManager();
 		RegisterResult registerResult = this.nameNodeRpcClient.register();
-		this.nameNodeRpcClient.startHeartbeat();
-		if(registerResult.equals(RegisterResult.SUCCESS)) {
+		if(registerResult.equals(RegisterResult.FAIL)) {
+			System.out.println("向NameNode注册失败，直接退出......");
+			System.exit(1);
+		} else if(registerResult.equals(RegisterResult.SUCCESS)) {
 			//启动时全量上传文件副本信息
-			StorageInfo storageInfo = getStorageInfo();
+			StorageInfo storageInfo = storageManager.getStorageInfo();
 			if(storageInfo != null) {
 				this.nameNodeRpcClient.reportCompleteStorageInfo(storageInfo);
 			}
 		}
-
+		this.heartbeatManager = new HeartbeatManager(
+				this.nameNodeRpcClient, this.storageManager);
+		this.heartbeatManager.start();
 		DataNodeNIOServer nioServer = new DataNodeNIOServer(this.nameNodeRpcClient);
 		nioServer.start();
-	}
-
-	private StorageInfo getStorageInfo() {
-		File dataDir = new File(DataNodeConfig.DATANODE_FILE_PATH);
-		List<File> allFile = scanFiles(dataDir);
-		if(allFile == null || allFile.size() == 0) {
-			return null;
-		}
-		StorageInfo storageInfo = new StorageInfo();
-		List<String> fileList = new ArrayList<>(allFile.size());
-		long storedDataSize = 0;
-		for (File file : allFile) {
-			String path = file.getPath();
-			fileList.add(path.substring(0, DataNodeConfig.DATANODE_FILE_PATH.length()));
-			storedDataSize += file.length();
-		}
-		storageInfo.setFileNames(fileList);
-		storageInfo.setStoredDataSize(storedDataSize);
-		return storageInfo;
-	}
-
-	private static List<File> scanFiles(File dir) {
-		File[] children = dir.listFiles();
-		List<File> fileList = new ArrayList<>();
-		for (File file : children) {
-			if(file.isDirectory()) {
-				fileList.addAll(scanFiles(file));
-			}
-			if(file.isFile()) {
-				fileList.add(file);
-			}
-		}
-		return fileList;
 	}
 	
 	/**

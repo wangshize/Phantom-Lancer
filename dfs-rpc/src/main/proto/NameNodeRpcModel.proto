@@ -22,7 +22,8 @@ message HeartbeatRequest{
     int32 nioPort = 3;
 }  
 message HeartbeatResponse{  
-    int32 status  = 1;   
+    int32 status  = 1;
+    string commands = 2;
 }
 //创建目录
 message MkdirRequest{

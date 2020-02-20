@@ -1,11 +1,9 @@
 package com.github.dfs.datanode.server;
 
 import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.github.dfs.namenode.RegisterResult;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
-
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
@@ -29,16 +27,6 @@ public class NameNodeRpcClient {
 		this.namenode = NameNodeServiceGrpc.newBlockingStub(channel);
 	}
 
-    /**
-     * 启动OfferService组件
-     */
-    public void start() throws Exception {
-        // 直接使用两个ServiceActor组件分别向主备两个NameNode节点进行注册
-        register();
-        // 开始发送心跳
-        startHeartbeat();
-    }
-
 	/**
 	 * 向自己负责通信的那个NameNode进行注册
 	 *
@@ -59,12 +47,18 @@ public class NameNodeRpcClient {
 		System.out.println("接收到NameNode返回的注册响应：" + registerResult.getDesc());
 		return registerResult;
 	}
-	
+
 	/**
-	 * 开启发送心跳的线程
+	 * 发送心跳
+	 * @throws Exception
 	 */
-	public void startHeartbeat() {
-		new HeartbeatThread().start();
+	public HeartbeatResponse heartbeat() {
+		HeartbeatRequest request = HeartbeatRequest.newBuilder()
+				.setIp(DATANODE_IP)
+				.setHostname(DATANODE_HOSTNAME)
+				.setNioPort(NIO_PORT)
+				.build();
+		return namenode.heartbeat(request);
 	}
 
 	/**
