@@ -7,7 +7,7 @@ import java.io.IOException;
 
 public class NameNodeRpcServer {
 
-	private static final int DEFAULT_PORT = 50070;
+	private static final int DEFAULT_PORT = 56789;
 
 	private Server server = null;
 	/**

@@ -11,4 +11,6 @@ public interface FileSystem {
     void shutdown();
 
     void upload(byte[] file, String fileName, long fileSize) throws Exception;
+
+    public byte[] download(String fileName);
 }

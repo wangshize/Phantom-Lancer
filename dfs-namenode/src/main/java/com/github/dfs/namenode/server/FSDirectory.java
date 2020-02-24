@@ -1,5 +1,9 @@
 package com.github.dfs.namenode.server;
 
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -89,7 +93,6 @@ public class FSDirectory {
 				parent = child;
 			}
 			//此时parent = 文件的上一级目录
-			List<INode> fileNodes = parent.getChildren();
 			if(existFile(parent, realFilename)) {
 				return false;
 			}
@@ -105,6 +108,7 @@ public class FSDirectory {
 	 * @param fileName
 	 */
 	public void addRecivedReplica(String fileName) {
+
 
 	}
 
@@ -170,10 +174,13 @@ public class FSDirectory {
 	 * @author zhonghuashishan
 	 *
 	 */
+	@Getter
+	@Setter
 	public static class INode {
 		
 		private String path;
 		private List<INode> children;
+		private List<DataNodeInfo> dataNodeInfos;
 		
 		public INode(String path) {
 			this.path = path;
@@ -183,20 +190,16 @@ public class FSDirectory {
 		public void addChild(INode inode) {
 			this.children.add(inode);
 		}
-		
-		public String getPath() {
-			return path;
-		}
-		public void setPath(String path) {
-			this.path = path;
-		}
-		public List<INode> getChildren() {
-			return children;
-		}
-		public void setChildren(List<INode> children) {
-			this.children = children;
-		}
 
+		public void addDataNodeInfo(DataNodeInfo dataNodeInfo) {
+			synchronized (this) {
+				if(dataNodeInfos == null) {
+					dataNodeInfos = new ArrayList<>();
+				}
+				dataNodeInfos.add(dataNodeInfo);
+			}
+		}
+		
 		@Override
 		public String toString() {
 			return "INode{" +

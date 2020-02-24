@@ -11,11 +11,11 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * 负责管理元数据的核心组件
@@ -38,6 +38,9 @@ public class FSNamesystem {
 	 */
 	private Map<String, List<DataNodeInfo>> replicasByFilename =
 			new ConcurrentHashMap<>();
+	private ReadWriteLock replicasLock = new ReentrantReadWriteLock();
+	private Lock replicasWriteLock = replicasLock.writeLock();
+	private Lock replicasReadLock = replicasLock.readLock();
 
 	private DataNodeManager dataNodeManager;
 
@@ -86,16 +89,55 @@ public class FSNamesystem {
 	 * @param fileName
 	 */
     public void addRecivedReplica(String fileName, String hostName, String ip) {
-		synchronized (fileName) {
-			List<DataNodeInfo> replicas = replicasByFilename.get(fileName);
-			if(replicas == null) {
-				replicas = new ArrayList<>();
-				replicasByFilename.put(fileName, replicas);
-			}
-			DataNodeInfo dataNodeInfo = dataNodeManager.getDataNodeInfo(ip, hostName);
-			replicas.add(dataNodeInfo);
-			System.out.println("收到增量上报，当前副本信息为：" + replicasByFilename);
-		}
+        try {
+            replicasWriteLock.lock();
+            List<DataNodeInfo> replicas = replicasByFilename.get(fileName);
+            if(replicas == null) {
+                replicas = new ArrayList<>();
+                replicasByFilename.put(fileName, replicas);
+            }
+            DataNodeInfo dataNodeInfo = dataNodeManager.getDataNodeInfo(ip, hostName);
+            replicas.add(dataNodeInfo);
+            System.out.println("收到增量上报，当前副本信息为：" + replicasByFilename);
+        } finally {
+            replicasWriteLock.unlock();
+        }
+	}
+
+    /**
+     * 获取文件所在的数据节点信息
+     * @param fileName
+     * @return
+     */
+	public DataNodeInfo getDataNodeInfo(String fileName) {
+	    try {
+	        replicasReadLock.lock();
+            List<DataNodeInfo> dataNodeInfos = replicasByFilename.get(fileName);
+            if(dataNodeInfos == null || dataNodeInfos.size() == 0) {
+                throw new IllegalArgumentException("文件不存在于任何数据节点");
+            }
+            Iterator<DataNodeInfo> infoIterator =  dataNodeInfos.iterator();
+            //移除已经被下线的数据节点
+            while (infoIterator.hasNext()) {
+                DataNodeInfo dataNodeInfo = infoIterator.next();
+                boolean isRemovedFromRegister = dataNodeManager.getDataNodeInfo(
+                        dataNodeInfo.getIp(),
+                        dataNodeInfo.getHostname()) == null;
+                if(isRemovedFromRegister) {
+                    infoIterator.remove();
+                }
+            }
+            return selectedDataNode(dataNodeInfos);
+        } finally {
+	        replicasReadLock.unlock();
+        }
+    }
+
+    private DataNodeInfo selectedDataNode(List<DataNodeInfo> dataNodeInfos) {
+        int size = dataNodeInfos.size();
+        Random random = new Random();
+        int index = random.nextInt(size);
+        return dataNodeInfos.get(index);
 	}
 
 	public void updateCheckPointTxId(long checkPointTxId) {

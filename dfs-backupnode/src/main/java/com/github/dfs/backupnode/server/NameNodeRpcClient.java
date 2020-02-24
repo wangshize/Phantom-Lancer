@@ -18,7 +18,7 @@ import java.util.Collections;
 public class NameNodeRpcClient {
 
     private static final String NAMENODE_HOSTNAME = "localhost";
-    private static final Integer NAMENODE_PORT = 50070;
+    private static final Integer NAMENODE_PORT = 56789;
 
     public static final Integer BACKUP_NODE_FETCH_SIZE = 100;
 

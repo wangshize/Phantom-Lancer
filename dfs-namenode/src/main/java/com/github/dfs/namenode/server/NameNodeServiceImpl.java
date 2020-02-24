@@ -338,6 +338,22 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	}
 
 	/**
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void getDataNodeForFile(GetDataNodeForFileRequest request, StreamObserver<GetDataNodeForFileResponse> responseObserver) {
+		String fileName = request.getFilename();
+		DataNodeInfo dataNodeInfo = namesystem.getDataNodeInfo(fileName);
+
+		GetDataNodeForFileResponse response = GetDataNodeForFileResponse.newBuilder()
+				.setDatanodeInfo(JSONArray.toJSONString(dataNodeInfo))
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
+
+	/**
 	 * 填充最终需要返回的editlog数据
 	 * @param fetchedEditsLog
 	 * @param editsLogs

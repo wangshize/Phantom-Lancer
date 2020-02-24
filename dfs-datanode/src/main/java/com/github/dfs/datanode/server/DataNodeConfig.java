@@ -9,7 +9,7 @@ import com.github.dfs.namenode.NameNodeConstants;
 public class DataNodeConfig {
 
     public static final String NAMENODE_HOSTNAME = "localhost";
-    public static final Integer NAMENODE_PORT = 50070;
+    public static final Integer NAMENODE_PORT = 56789;
 
     public static final String DATANODE_IP = "127.0.0.1";
     public static final String DATANODE_HOSTNAME = "dfs-data-03";

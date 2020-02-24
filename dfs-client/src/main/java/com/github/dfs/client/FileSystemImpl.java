@@ -1,5 +1,6 @@
 package com.github.dfs.client;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
@@ -17,9 +18,11 @@ import java.util.List;
 public class FileSystemImpl implements FileSystem {
 
     private static final String NAMENODE_HOSTNAME = "localhost";
-    private static final Integer NAMENODE_PORT = 50070;
+    private static final Integer NAMENODE_PORT = 56789;
 
     private NameNodeServiceGrpc.NameNodeServiceBlockingStub namenode;
+
+    private NIOClient nioClient;
 
     public FileSystemImpl() {
         ManagedChannel channel = NettyChannelBuilder
@@ -27,6 +30,7 @@ public class FileSystemImpl implements FileSystem {
                 .negotiationType(NegotiationType.PLAINTEXT)
                 .build();
         this.namenode = NameNodeServiceGrpc.newBlockingStub(channel);
+        this.nioClient = new NIOClient();
     }
 
     /**
@@ -75,8 +79,25 @@ public class FileSystemImpl implements FileSystem {
             DataNodeInfo datanode = datanodes.get(i);
             String hostName = datanode.getHostname();
             int nioPort = datanode.getNioPort();
-            NIOClient.sendFile(hostName, nioPort, file, fileSize, fileName);
+            nioClient.sendFile(hostName, nioPort, file, fileSize, fileName);
         }
 
+    }
+
+    @Override
+    public byte[] download(String fileName) {
+        //1、调用NameNode接口，获取文件所在的摸一个副本地址
+        GetDataNodeForFileRequest request = GetDataNodeForFileRequest.newBuilder()
+                .setFilename(fileName)
+                .build();
+        GetDataNodeForFileResponse response = namenode.getDataNodeForFile(request);
+        String dataNodeInfoJson = response.getDatanodeInfo();
+        DataNodeInfo dataNodeInfo = JSON.parseObject(dataNodeInfoJson, DataNodeInfo.class);
+        //2、通过数据节点地址建立连接，发送文件名
+        //3、接收文件数据
+        String hostName = dataNodeInfo.getHostname();
+        int nioPort = dataNodeInfo.getNioPort();
+        byte[] fileByte = nioClient.readFile(hostName, nioPort, fileName);
+        return fileByte;
     }
 }

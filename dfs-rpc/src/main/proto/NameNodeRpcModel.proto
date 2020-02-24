@@ -89,3 +89,10 @@ message ReportCompleteStorageInfoRequest{
 message ReportCompleteStorageInfoResponse{
     int32 status = 1;
 }
+//获取文件
+message GetDataNodeForFileRequest{
+    string filename = 1;
+}
+message GetDataNodeForFileResponse{
+    string datanodeInfo = 1;
+}

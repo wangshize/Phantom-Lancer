@@ -19,5 +19,6 @@ service NameNodeService {
 	rpc AllocateDataNodesFile(AllocateDataNodesRequest) returns (AllocateDataNodesResponse);
 	rpc informReplicaReceived(InformReplicaReceivedRequest) returns (InformReplicaReceivedResponse);
 	rpc reportCompleteStorageInfo(ReportCompleteStorageInfoRequest) returns (ReportCompleteStorageInfoResponse);
+	rpc getDataNodeForFile(GetDataNodeForFileRequest) returns (GetDataNodeForFileResponse);
 
 }
