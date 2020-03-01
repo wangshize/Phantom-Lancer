@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 /**
  * 负责管理元数据的核心组件
@@ -104,34 +105,46 @@ public class FSNamesystem {
         }
 	}
 
-    /**
-     * 获取文件所在的数据节点信息
-     * @param fileName
-     * @return
-     */
+	/**
+	 * 获取文件所在的数据节点信息
+	 * @param fileName
+	 * @return
+	 */
 	public DataNodeInfo getDataNodeInfo(String fileName) {
-	    try {
-	        replicasReadLock.lock();
-            List<DataNodeInfo> dataNodeInfos = replicasByFilename.get(fileName);
-            if(dataNodeInfos == null || dataNodeInfos.size() == 0) {
-                throw new IllegalArgumentException("文件不存在于任何数据节点");
-            }
-            Iterator<DataNodeInfo> infoIterator =  dataNodeInfos.iterator();
-            //移除已经被下线的数据节点
-            while (infoIterator.hasNext()) {
-                DataNodeInfo dataNodeInfo = infoIterator.next();
-                boolean isRemovedFromRegister = dataNodeManager.getDataNodeInfo(
-                        dataNodeInfo.getIp(),
-                        dataNodeInfo.getHostname()) == null;
-                if(isRemovedFromRegister) {
-                    infoIterator.remove();
-                }
-            }
-            return selectedDataNode(dataNodeInfos);
-        } finally {
-	        replicasReadLock.unlock();
-        }
-    }
+		return getDataNodeInfo(fileName, null, -1);
+	}
+
+	public DataNodeInfo getDataNodeInfo(String fileName, String excludedHostName, Integer excludedNioPort) {
+		try {
+			replicasReadLock.lock();
+			List<DataNodeInfo> dataNodeInfos = replicasByFilename.get(fileName);
+			if(dataNodeInfos == null || dataNodeInfos.size() == 0) {
+				throw new IllegalArgumentException("文件不存在于任何数据节点");
+			}
+			Iterator<DataNodeInfo> infoIterator =  dataNodeInfos.iterator();
+			//移除已经被下线的数据节点
+			while (infoIterator.hasNext()) {
+				DataNodeInfo dataNodeInfo = infoIterator.next();
+				boolean isRemovedFromRegister = dataNodeManager.getDataNodeInfo(
+						dataNodeInfo.getIp(),
+						dataNodeInfo.getHostname()) == null;
+				if(isRemovedFromRegister) {
+					infoIterator.remove();
+				}
+			}
+			List<DataNodeInfo> filterList = dataNodeInfos;
+			if(excludedHostName != null && excludedNioPort != -1) {
+				filterList = dataNodeInfos.stream()
+						.filter(dataNodeInfo -> {
+							return !dataNodeInfo.getNioPort().equals(excludedNioPort)
+									&& !dataNodeInfo.getHostname().equals(excludedHostName);
+						}).collect(Collectors.toList());
+			}
+			return selectedDataNode(filterList);
+		} finally {
+			replicasReadLock.unlock();
+		}
+	}
 
     private DataNodeInfo selectedDataNode(List<DataNodeInfo> dataNodeInfos) {
         int size = dataNodeInfos.size();

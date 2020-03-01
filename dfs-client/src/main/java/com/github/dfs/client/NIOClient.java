@@ -25,21 +25,27 @@ public class NIOClient {
      * @param file
      * @param fileSize
      */
-    public void sendFile(String hostName, int nioPort,
+    public boolean sendFile(String hostName, int nioPort,
                                 byte[] file, long fileSize, String fileName) {
+        boolean sendSuccess = true;
         //建立短链接，发送完一个文件就释放连接  简单实现
         SocketChannel channel = null;
         Selector selector = null;
         try {
             channel = SocketChannel.open();
+            //设置连接为非阻塞，否则select()轮询的时候就会阻塞
+            //相应的，下面获取连接的时候，就要通过finishConnect来判断是否已经建立
             channel.configureBlocking(false);
             channel.connect(new InetSocketAddress(hostName, nioPort));
             selector = Selector.open();
+            //将SocketChannel注册大盘selector上，相当于告诉哦selector在轮询的时候
+            // 这个channel是否有OP_CONNECT这个事件，有的话就通知过来
             channel.register(selector, SelectionKey.OP_CONNECT);
 
             boolean sending = true;
 
             while(sending){
+                //在轮询多个channel的时候，不会因为某个channel没有时间发生就阻塞在那里，而是集训轮询下一个channel
                 selector.select();
 
                 Iterator<SelectionKey> keysIterator = selector.selectedKeys().iterator();
@@ -53,13 +59,12 @@ public class NIOClient {
                         if(channel.isConnectionPending()){
                             //三次握手完毕，一个TCP链接建立完毕
                             channel.finishConnect();
-
-                            ByteBuffer buffer = sendFileByteBuffer(file, fileSize, fileName);
-                            int sendData = channel.write(buffer);
-                            System.out.println("已经发送" + sendData + "字节的数据");
-
-                            channel.register(selector, SelectionKey.OP_READ);
                         }
+                        ByteBuffer buffer = sendFileByteBuffer(file, fileSize, fileName);
+                        int sendData = channel.write(buffer);
+                        System.out.println("已经发送" + sendData + "字节的数据");
+
+                        channel.register(selector, SelectionKey.OP_READ);
                     }
                     //收到NIOServer的响应
                     else if(key.isReadable()){
@@ -71,6 +76,7 @@ public class NIOClient {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            sendSuccess = false;
         } finally{
             if(channel != null){
                 try {
@@ -87,10 +93,11 @@ public class NIOClient {
                     e.printStackTrace();
                 }
             }
+            return sendSuccess;
         }
     }
 
-    public byte[] readFile(String hostName, int nioPort, String fileName) {
+    public byte[] readFile(String hostName, int nioPort, String fileName) throws Exception {
         //建立短链接，发送完一个文件就释放连接  简单实现
         SocketChannel channel = null;
         Selector selector = null;
@@ -141,6 +148,7 @@ public class NIOClient {
 
         } catch (Exception e) {
             e.printStackTrace();
+            throw new Exception("download file fail......");
         } finally{
             if(channel != null){
                 try {
@@ -214,6 +222,7 @@ public class NIOClient {
         System.out.println("本次接收到文件数据长度：" + fileBuffer.limit());
         if(!fileBuffer.hasRemaining()) {
             completeRead = true;
+            readFileResult.complete = true;
         }
         return completeRead;
     }

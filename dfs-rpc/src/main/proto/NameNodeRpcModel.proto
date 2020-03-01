@@ -90,9 +90,21 @@ message ReportCompleteStorageInfoResponse{
     int32 status = 1;
 }
 //获取文件
-message GetDataNodeForFileRequest{
+message ChooseDataNodeForFileRequest{
     string filename = 1;
+    int32 excludedNioPort = 3;
+    string excludedHostName = 4;
 }
-message GetDataNodeForFileResponse{
+message ChooseDataNodeForFileResponse{
+    string datanodeInfo = 1;
+}
+//重新分配节点
+message ReallocateDataNodeRequest{
+    string filename = 1;
+    int64 fileSize = 2;
+    string excludedIp = 3;
+    string excludedHostName = 4;
+}
+message ReallocateDataNodeResponse{
     string datanodeInfo = 1;
 }

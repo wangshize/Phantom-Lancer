@@ -67,6 +67,34 @@ public class DataNodeManager {
 			return selectedDataNodes;
 		}
 	}
+
+	public DataNodeInfo reAllocateDataNode(long fileSize, String excludedIp, String excludedHostName) {
+		synchronized(this) {
+			// 先把排除掉的那个数据节点的存储的数据量减少文件的大小
+			DataNodeInfo excludedDataNode = datanodes.get(createDataNodeKey(excludedIp, excludedHostName));
+			if(excludedDataNode != null) {
+				excludedDataNode.addStoredFileSize(-fileSize);
+			}
+
+			// 取出来所有的datanode，并且按照已经存储的数据大小来排序
+			List<DataNodeInfo> datanodeList = new ArrayList<>();
+			for(DataNodeInfo datanode : datanodes.values()) {
+				if(!excludedDataNode.equals(datanode)) {
+					datanodeList.add(datanode);
+				}
+			}
+			Collections.sort(datanodeList);
+
+			// 选择存储数据最少的头两个datanode出来
+			DataNodeInfo selectedDatanode = null;
+			if(datanodeList.size() >= 1) {
+				selectedDatanode = datanodeList.get(0);
+				datanodeList.get(0).addStoredFileSize(fileSize);
+			}
+
+			return selectedDatanode;
+		}
+	}
 	
 	/**
 	 * datanode进行心跳

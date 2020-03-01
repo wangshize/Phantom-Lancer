@@ -9,6 +9,7 @@ import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 import io.grpc.stub.StreamObserver;
 
+import javax.net.ssl.HostnameVerifier;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -292,6 +293,24 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	}
 
 	/**
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void reallocateDataNode(ReallocateDataNodeRequest request, StreamObserver<ReallocateDataNodeResponse> responseObserver) {
+		long fileSize = request.getFileSize();
+		String excludedHostName = request.getExcludedHostName();
+		String excludedIp = request.getExcludedIp();
+		DataNodeInfo datanode = datanodeManager.reAllocateDataNode(fileSize, excludedIp, excludedHostName);
+
+		ReallocateDataNodeResponse response = ReallocateDataNodeResponse.newBuilder()
+				.setDatanodeInfo(JSONObject.toJSONString(datanode))
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
+
+	/**
      * 数据节点通知接收到的文件信息
 	 * @param request
 	 * @param responseObserver
@@ -342,11 +361,13 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	 * @param responseObserver
 	 */
 	@Override
-	public void getDataNodeForFile(GetDataNodeForFileRequest request, StreamObserver<GetDataNodeForFileResponse> responseObserver) {
+	public void chooseDataNodeForFile(ChooseDataNodeForFileRequest request, StreamObserver<ChooseDataNodeForFileResponse> responseObserver) {
 		String fileName = request.getFilename();
-		DataNodeInfo dataNodeInfo = namesystem.getDataNodeInfo(fileName);
+		String excludedHostName = request.getExcludedHostName();
+		int excludedNioPort = request.getExcludedNioPort();
+		DataNodeInfo dataNodeInfo = namesystem.getDataNodeInfo(fileName, excludedHostName, excludedNioPort);
 
-		GetDataNodeForFileResponse response = GetDataNodeForFileResponse.newBuilder()
+		ChooseDataNodeForFileResponse response = ChooseDataNodeForFileResponse.newBuilder()
 				.setDatanodeInfo(JSONArray.toJSONString(dataNodeInfo))
 				.build();
 		responseObserver.onNext(response);

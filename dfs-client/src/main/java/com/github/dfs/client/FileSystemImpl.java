@@ -77,27 +77,74 @@ public class FileSystemImpl implements FileSystem {
         List<DataNodeInfo> datanodes = JSONArray.parseArray(dataNodesJson, DataNodeInfo.class);
         for (int i = 0; i < datanodes.size(); i++) {
             DataNodeInfo datanode = datanodes.get(i);
-            String hostName = datanode.getHostname();
-            int nioPort = datanode.getNioPort();
-            nioClient.sendFile(hostName, nioPort, file, fileSize, fileName);
+            boolean sendResult = sendFIle(file, fileName, fileSize, datanode);
+            if(!sendResult) {
+                DataNodeInfo dataNodeInfo = reAllocateDataNode(datanode, fileSize);
+                sendResult = sendFIle(file, fileName, fileSize, dataNodeInfo);
+                if(!sendResult) {
+                    //重试一次，再失败就抛出异常
+                    throw new Exception("send file fail......");
+                }
+            }
         }
 
+    }
+
+    private boolean sendFIle(byte[] file, String fileName, long fileSize, DataNodeInfo datanode) {
+        String hostName = datanode.getHostname();
+        int nioPort = datanode.getNioPort();
+        return nioClient.sendFile(hostName, nioPort, file, fileSize, fileName);
+    }
+
+    private DataNodeInfo reAllocateDataNode(DataNodeInfo excludedDataNode, long fileSize) {
+        ReallocateDataNodeRequest request = ReallocateDataNodeRequest.newBuilder()
+                .setFileSize(fileSize)
+                .setExcludedHostName(excludedDataNode.getHostname())
+                .setExcludedIp(excludedDataNode.getIp())
+                .build();
+        ReallocateDataNodeResponse response = namenode.reallocateDataNode(request);
+        DataNodeInfo dataNodeInfo = JSON.parseObject(response.getDatanodeInfo(), DataNodeInfo.class);
+        return dataNodeInfo;
     }
 
     @Override
     public byte[] download(String fileName) {
         //1、调用NameNode接口，获取文件所在的摸一个副本地址
-        GetDataNodeForFileRequest request = GetDataNodeForFileRequest.newBuilder()
-                .setFilename(fileName)
-                .build();
-        GetDataNodeForFileResponse response = namenode.getDataNodeForFile(request);
-        String dataNodeInfoJson = response.getDatanodeInfo();
-        DataNodeInfo dataNodeInfo = JSON.parseObject(dataNodeInfoJson, DataNodeInfo.class);
+        DataNodeInfo dataNodeInfo = getDataNodeForFile(fileName, null, -1);
         //2、通过数据节点地址建立连接，发送文件名
         //3、接收文件数据
-        String hostName = dataNodeInfo.getHostname();
-        int nioPort = dataNodeInfo.getNioPort();
-        byte[] fileByte = nioClient.readFile(hostName, nioPort, fileName);
+        byte[] fileByte = new byte[0];
+        try {
+            String hostName = dataNodeInfo.getHostname();
+            int nioPort = dataNodeInfo.getNioPort();
+            fileByte = nioClient.readFile(hostName, nioPort, fileName);
+        } catch (Exception e) {
+            e.printStackTrace();
+            String hostName = dataNodeInfo.getHostname();
+            int nioPort = dataNodeInfo.getNioPort();
+            DataNodeInfo newDataNodeInfo = getDataNodeForFile(fileName, hostName, nioPort);
+            String newHostName = newDataNodeInfo.getHostname();
+            int newNioPort = newDataNodeInfo.getNioPort();
+            try {
+                fileByte = nioClient.readFile(newHostName, newNioPort, fileName);
+            } catch (Exception e1) {
+                e1.printStackTrace();
+            }
+        }
+
         return fileByte;
+    }
+
+    private DataNodeInfo getDataNodeForFile(String fileName, String hostName, int nioPort) {
+        ChooseDataNodeForFileRequest request;
+        request = ChooseDataNodeForFileRequest.newBuilder()
+                .setFilename(fileName)
+                .setExcludedHostName(hostName)
+                .setExcludedNioPort(nioPort)
+                .build();
+        ChooseDataNodeForFileResponse response = namenode.chooseDataNodeForFile(request);
+        String dataNodeInfoJson = response.getDatanodeInfo();
+        DataNodeInfo dataNodeInfo = JSON.parseObject(dataNodeInfoJson, DataNodeInfo.class);
+        return dataNodeInfo;
     }
 }
