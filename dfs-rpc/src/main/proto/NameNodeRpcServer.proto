@@ -21,5 +21,6 @@ service NameNodeService {
 	rpc reportCompleteStorageInfo(ReportCompleteStorageInfoRequest) returns (ReportCompleteStorageInfoResponse);
 	rpc chooseDataNodeForFile(ChooseDataNodeForFileRequest) returns (ChooseDataNodeForFileResponse);
 	rpc reallocateDataNode(ReallocateDataNodeRequest) returns (ReallocateDataNodeResponse);
+	rpc reBalance(ReBalanceRequest) returns (ReBalanceResponse);
 
 }

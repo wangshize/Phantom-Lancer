@@ -1,13 +1,11 @@
 package com.github.dfs.namenode.server;
 
 import com.alibaba.fastjson.JSON;
-import com.github.dfs.namenode.IOUitls;
-import com.github.dfs.namenode.NameNodeConstants;
+import com.github.dfs.common.IOUitls;
+import com.github.dfs.common.NameNodeConstants;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 

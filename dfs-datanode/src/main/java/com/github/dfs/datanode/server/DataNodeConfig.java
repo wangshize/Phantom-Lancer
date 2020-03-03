@@ -1,6 +1,6 @@
 package com.github.dfs.datanode.server;
 
-import com.github.dfs.namenode.NameNodeConstants;
+import com.github.dfs.common.NameNodeConstants;
 
 /**
  * @author wangsz
@@ -16,4 +16,7 @@ public class DataNodeConfig {
     public static final String DATANODE_FILE_PATH = NameNodeConstants.imagePath + DATANODE_HOSTNAME;
 
     public static final Integer NIO_PORT = 9003;
+
+    public static final Integer REPLICATE_THREAD_NUM = 3;
+
 }

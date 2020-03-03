@@ -1,4 +1,4 @@
-package com.github.dfs.namenode;
+package com.github.dfs.common;
 
 import java.io.FileOutputStream;
 import java.io.IOException;

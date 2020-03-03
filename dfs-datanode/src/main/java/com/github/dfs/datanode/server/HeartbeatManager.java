@@ -1,9 +1,11 @@
 package com.github.dfs.datanode.server;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
-import com.github.dfs.namenode.Command;
-import com.github.dfs.namenode.HeartbeatResult;
+import com.github.dfs.common.Command;
+import com.github.dfs.common.HeartbeatResult;
+import com.github.dfs.common.entity.RemoveReplicaTask;
+import com.github.dfs.common.entity.ReplicateTask;
 import com.github.dfs.namenode.rpc.model.HeartbeatResponse;
 
 import java.util.List;
@@ -17,11 +19,13 @@ public class HeartbeatManager {
 
 	private NameNodeRpcClient namenodeRpcClient;
 	private StorageManager storageManager;
+	private ReplicateManager replicateManager;
 	
 	public HeartbeatManager(NameNodeRpcClient namenodeRpcClient, 
-			StorageManager storageManager) {
+			StorageManager storageManager, ReplicateManager replicateManager) {
 		this.namenodeRpcClient = namenodeRpcClient;
 		this.storageManager = storageManager;
+		this.replicateManager = replicateManager;
 	}
 	
 	public void start() {
@@ -44,6 +48,20 @@ public class HeartbeatManager {
 						// 通过RPC接口发送到NameNode他的注册接口上去
 						HeartbeatResponse response = namenodeRpcClient.heartbeat();
 						HeartbeatResult heartbeatResult = HeartbeatResult.fromCode(response.getStatus());
+						if(heartbeatResult.equals(HeartbeatResult.SUCCESS)) {
+							List<Command> commands = JSONArray.parseArray(response.getCommands(), Command.class);
+							for (int i = 0; i < commands.size(); i++) {
+								Command command = commands.get(i);
+								int commandType = command.getType();
+								if(Command.REPLICATE == commandType) {
+									ReplicateTask replicateTask = JSON.parseObject(command.getContent(), ReplicateTask.class);
+									replicateManager.addReplicateTask(replicateTask);
+								} else if(Command.REMOVE == commandType) {
+									RemoveReplicaTask removeTask = JSON.parseObject(command.getContent(), RemoveReplicaTask.class);
+									replicateManager.addRemoveReplicateTask(removeTask);
+								}
+							}
+						}
 						// 如果心跳失败了
 						if (heartbeatResult.equals(HeartbeatResult.FAIL)) {
 							List<Command> commands = JSONArray.parseArray(response.getCommands(), Command.class);

@@ -74,7 +74,7 @@ message AllocateDataNodesResponse{
 message InformReplicaReceivedRequest{
     string ip = 1;
     string hostname = 2;
-    string filename = 3;
+    string fileInfo = 3;
 }
 message InformReplicaReceivedResponse{
     int32 status = 1;
@@ -83,7 +83,7 @@ message InformReplicaReceivedResponse{
 message ReportCompleteStorageInfoRequest{
     string ip = 1;
     string hostname = 2;
-    string filenames = 3;
+    string fileInfo = 3;
     int64 storedDataSize = 4;
 }
 message ReportCompleteStorageInfoResponse{
@@ -107,4 +107,10 @@ message ReallocateDataNodeRequest{
 }
 message ReallocateDataNodeResponse{
     string datanodeInfo = 1;
+}
+//集群数据重平衡
+message ReBalanceRequest{
+}
+message ReBalanceResponse{
+    int32 status = 1;
 }

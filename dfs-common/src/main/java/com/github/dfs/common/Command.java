@@ -1,4 +1,4 @@
-package com.github.dfs.namenode;
+package com.github.dfs.common;
 
 /**
  * @author wangsz
@@ -8,6 +8,8 @@ public class Command {
 
     public static final Integer REGISTER = 1;
     public static final Integer REPORT_COMPLETE_STORAGE_INFO = 2;
+    public static final Integer REPLICATE = 3;
+    public static final Integer REMOVE = 4;
 
     private Integer type;
     private String content;

@@ -1,7 +1,10 @@
 package com.github.dfs.namenode.server;
 
-import com.github.dfs.namenode.NameNodeConstants;
-import com.github.dfs.namenode.RegisterResult;
+import com.github.dfs.common.NameNodeConstants;
+import com.github.dfs.common.RegisterResult;
+import com.github.dfs.common.entity.DataNodeInfo;
+import com.github.dfs.common.entity.FileInfo;
+import com.github.dfs.common.entity.ReplicateTask;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,6 +21,8 @@ public class DataNodeManager {
 	 */
 	private Map<String, DataNodeInfo> datanodes =
 			new ConcurrentHashMap<String, DataNodeInfo>();
+
+	private FSNamesystem namesystem;
 	
 	public DataNodeManager() {
 		new DataNodeAliveMonitor().start();
@@ -117,6 +122,74 @@ public class DataNodeManager {
 		DataNodeInfo dataNodeInfo = datanodes.get(createDataNodeKey(ip, hostname));
 		dataNodeInfo.setStoredDataSize(dataSize);
 	}
+
+	public void setNamesystem(FSNamesystem namesystem) {
+		this.namesystem = namesystem;
+	}
+
+	/**
+	 * 创建丢失副本的复制任务
+	 */
+	public void createLostReplicaTask(DataNodeInfo deadDatanode) {
+		List<FileInfo> files = namesystem.getFileInfoByDataNode(
+				deadDatanode.getDataNodeKey());
+		if(files == null) {
+			return;
+		}
+		for(FileInfo file : files) {
+			String filename = file.getFileName();
+			Long fileLength = file.getFileLength();
+			List<DataNodeInfo> replicateDatanodes = allocateDataNodes(fileLength);
+			if(replicateDatanodes != null && replicateDatanodes.size() >= 1) {
+				//最终需要复制过去的目标节点
+				DataNodeInfo destDatanode = replicateDatanodes.get(0);
+				//复制文件的源头数据节点
+				DataNodeInfo srcDatanode = namesystem.getReplicateSource(filename, deadDatanode);
+				if(srcDatanode != null) {
+					ReplicateTask replicateTask = new ReplicateTask(
+							filename, fileLength, destDatanode, srcDatanode);
+					srcDatanode.addReplicateTask(replicateTask);
+				}
+
+			}
+		}
+	}
+
+	public void createReblanceReplicateTasks() {
+		synchronized (this) {
+			long totalStoreDataSize = 0;
+			long averageStoreDataSize;
+			for (DataNodeInfo dataNode : datanodes.values()) {
+				totalStoreDataSize = dataNode.getStoredDataSize();
+			}
+			averageStoreDataSize = totalStoreDataSize / datanodes.size();
+			List<DataNodeInfo> sourceDataNodes = new ArrayList<>();
+			List<DataNodeInfo> destDataNodes = new ArrayList<>();
+			for (DataNodeInfo dataNode : datanodes.values()) {
+				if(dataNode.getStoredDataSize() > averageStoreDataSize) {
+					sourceDataNodes.add(dataNode);
+				}
+				if(dataNode.getStoredDataSize() < averageStoreDataSize) {
+					destDataNodes.add(dataNode);
+				}
+			}
+			for (DataNodeInfo sourceDataNode : sourceDataNodes) {
+				long toRemoveDataSize = sourceDataNode.getStoredDataSize() - averageStoreDataSize;
+				for (DataNodeInfo destDataNode : destDataNodes) {
+					if(destDataNode.getStoredDataSize() + toRemoveDataSize <= averageStoreDataSize) {
+						//获取sourceDataNode节点里的文件，遍历文件，决定哪些文件要迁移过
+						//对这些文件生成迁移/复制文件任务
+
+						//生成文件删除任务
+
+						break;
+					} else if(destDataNode.getStoredDataSize() < averageStoreDataSize) {
+
+					}
+				}
+			}
+		}
+	}
 	
 	/**
 	 * datanode是否存活的监控线程
@@ -129,24 +202,33 @@ public class DataNodeManager {
 		public void run() {
 			try {
 				while(true) {
-					List<String> toRemoveDatanodes = new ArrayList<String>();
+					List<DataNodeInfo> toRemoveDatanodes = new ArrayList<DataNodeInfo>();
 					
 					Iterator<DataNodeInfo> datanodesIterator = datanodes.values().iterator();
 					DataNodeInfo datanode = null;
 					while(datanodesIterator.hasNext()) {
 						datanode = datanodesIterator.next();
-						if(System.currentTimeMillis() - datanode.getLatestHeartbeatTime() > 90 * 1000) {
-							toRemoveDatanodes.add(createDataNodeKey(datanode.getIp(), datanode.getHostname()));
+						if(System.currentTimeMillis() - datanode.getLatestHeartbeatTime() > 30 * 1000) {
+							toRemoveDatanodes.add(datanode);
 						}
 					}
 					
 					if(!toRemoveDatanodes.isEmpty()) {
-						for(String toRemoveDatanode : toRemoveDatanodes) {
-							datanodes.remove(toRemoveDatanode);
+						for(DataNodeInfo toRemoveDatanode : toRemoveDatanodes) {
+							//数据节点和文件副本的关系 FSNamesystem里的replicasByFilename
+							//采用了惰性删除，也就是在读取文件的时候，根据文件名获取到数据节点，
+							// 如果发现数据节点已经宕机了，那么此时再删除他们的对应关系
+							//对于filesByDatanode的维护，为每个文件生成一个复制任务，将该节点上
+							//的文件复制一份到其他节点上，保证每个文件至少有两份副本
+							//考虑一个问题，复制过程中如果又重启了呢？需要为重启的那个节点生成删除任务
+							createLostReplicaTask(toRemoveDatanode);
+							datanodes.remove(toRemoveDatanode.getDataNodeKey());
+							namesystem.removeDeadDataNode(toRemoveDatanode);
+
 						}
 					}
 					
-					Thread.sleep(30 * 1000); 
+					Thread.sleep(30 * 1000);
 				}
 			} catch (Exception e) {
 				e.printStackTrace();

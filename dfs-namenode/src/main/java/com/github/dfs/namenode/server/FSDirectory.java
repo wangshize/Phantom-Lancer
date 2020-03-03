@@ -1,5 +1,6 @@
 package com.github.dfs.namenode.server;
 
+import com.github.dfs.common.entity.DataNodeInfo;
 import lombok.Getter;
 import lombok.Setter;
 

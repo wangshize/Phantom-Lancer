@@ -1,5 +1,6 @@
 package com.github.dfs.datanode.server;
 
+import com.github.dfs.common.entity.FileInfo;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,11 +15,11 @@ import java.util.List;
 @Setter
 public class StorageInfo {
 
-    private List<String> fileNames = new ArrayList<>();
+    private List<FileInfo> fileInfos = new ArrayList<>();
     private Long storedDataSize;
 
-    public void addFilename(String fileNames) {
-        this.fileNames.add(fileNames);
+    public void addFilename(FileInfo fileInfo) {
+        this.fileInfos.add(fileInfo);
     }
     public void addStoredDataSize(Long storedDataSize) {
         this.storedDataSize += storedDataSize;

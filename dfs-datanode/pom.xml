@@ -28,6 +28,11 @@
 			<version>${rpc.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>com.github.dfs</groupId>
+			<artifactId>dfs-client</artifactId>
+			<version>${dfs.client.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 		</dependency>

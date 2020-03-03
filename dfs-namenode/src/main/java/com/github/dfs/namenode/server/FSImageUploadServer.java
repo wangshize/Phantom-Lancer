@@ -1,6 +1,6 @@
 package com.github.dfs.namenode.server;
 
-import com.github.dfs.namenode.NameNodeConstants;
+import com.github.dfs.common.NameNodeConstants;
 
 import java.io.File;
 import java.io.FileOutputStream;

@@ -18,17 +18,17 @@ public class TestUpload {
         FileSystem fileSystem = new FileSystemImpl();
         String filePath = "/Users/wangsz/Desktop/mac.png";
         File file = new File(filePath);
-        String uploadFileName = "mac/test2.png";
-//        long fileSize = file.length();
+        String uploadFileName = "mac/test4.png";
+        long fileSize = file.length();
 
-//        ByteBuffer buffer = ByteBuffer.allocate((int)fileSize);
-//        FileInputStream imageIn = new FileInputStream(file);
-//        FileChannel channel = imageIn.getChannel();
-//        channel.read(buffer);
-//        buffer.flip();
-//        fileSystem.upload(buffer.array(), uploadFileName, fileSize);
+        ByteBuffer buffer = ByteBuffer.allocate((int)fileSize);
+        FileInputStream imageIn = new FileInputStream(file);
+        FileChannel channel = imageIn.getChannel();
+        channel.read(buffer);
+        buffer.flip();
+        fileSystem.upload(buffer.array(), uploadFileName, fileSize);
 
-        download(uploadFileName, fileSystem);
+//        download(uploadFileName, fileSystem);
     }
 
     public static void download(String fileName, FileSystem fileSystem) throws IOException {

@@ -19,6 +19,7 @@
     	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<java.version>1.8</java.version>
 		<rpc.version>0.0.1-SNAPSHOT</rpc.version>
+		<dfs.client.version>0.0.1-SNAPSHOT</dfs.client.version>
 		<common.version>0.0.1-SNAPSHOT</common.version>
 		<grpc.version>1.17.1</grpc.version>
 		<protobuf.java.version>3.3.0</protobuf.java.version>

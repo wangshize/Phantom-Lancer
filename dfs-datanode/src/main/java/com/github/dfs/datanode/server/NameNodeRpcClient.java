@@ -1,7 +1,9 @@
 package com.github.dfs.datanode.server;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
-import com.github.dfs.namenode.RegisterResult;
+import com.github.dfs.common.RegisterResult;
+import com.github.dfs.common.entity.FileInfo;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 import io.grpc.ManagedChannel;
@@ -63,13 +65,13 @@ public class NameNodeRpcClient {
 
 	/**
 	 * 增量上报文件副本信息
-	 * @param fileName
+	 * @param fileInfo
 	 * @param hostName
 	 * @param ip
 	 */
-	public void informReplicaReceived(String fileName, String hostName, String ip) {
+	public void informReplicaReceived(FileInfo fileInfo, String hostName, String ip) {
         InformReplicaReceivedRequest replicaReceivedRequest = InformReplicaReceivedRequest.newBuilder()
-                .setFilename(fileName)
+                .setFileInfo(JSON.toJSONString(fileInfo))
 				.setHostname(hostName)
 				.setIp(ip)
                 .build();
@@ -81,7 +83,7 @@ public class NameNodeRpcClient {
 	 */
 	public void reportCompleteStorageInfo(StorageInfo storageInfo) {
 		ReportCompleteStorageInfoRequest request = ReportCompleteStorageInfoRequest.newBuilder()
-				.setFilenames(JSONArray.toJSONString(storageInfo.getFileNames()))
+				.setFileInfo(JSONArray.toJSONString(storageInfo.getFileInfos()))
 				.setStoredDataSize(storageInfo.getStoredDataSize())
 				.setHostname(DATANODE_HOSTNAME)
 				.setIp(DATANODE_IP)

@@ -1,15 +1,19 @@
 package com.github.dfs.namenode.server;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.github.dfs.namenode.Command;
-import com.github.dfs.namenode.HeartbeatResult;
-import com.github.dfs.namenode.RegisterResult;
+import com.github.dfs.common.Command;
+import com.github.dfs.common.HeartbeatResult;
+import com.github.dfs.common.RegisterResult;
+import com.github.dfs.common.entity.DataNodeInfo;
+import com.github.dfs.common.entity.FileInfo;
+import com.github.dfs.common.entity.RemoveReplicaTask;
+import com.github.dfs.common.entity.ReplicateTask;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 import io.grpc.stub.StreamObserver;
 
-import javax.net.ssl.HostnameVerifier;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -85,12 +89,37 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	@Override
 	public void heartbeat(HeartbeatRequest request, 
 			StreamObserver<HeartbeatResponse> responseObserver) {
-		boolean result = datanodeManager.heartbeat(request.getIp(), request.getHostname());
+		String ip = request.getIp();
+		String hostName = request.getHostname();
+		boolean result = datanodeManager.heartbeat(ip, hostName);
 		List<Command> commands = new ArrayList<Command>();
 		HeartbeatResponse response = null;
 		if(result) {
+			DataNodeInfo dataNodeInfo = datanodeManager.getDataNodeInfo(ip, hostName);
+			ReplicateTask replicateTask;
+			while ((replicateTask = dataNodeInfo.pollReplicateTask()) != null) {
+				Command replicateCommand = new Command(Command.REPLICATE);
+				replicateCommand.setContent(JSON.toJSONString(replicateTask));
+				commands.add(replicateCommand);
+				//为了防止响应报文太大，允许一次心跳最多带回500个复制任务
+				if(commands.size() >= 500) {
+					break;
+				}
+			}
+			RemoveReplicaTask removeReplicaTask;
+			while ((removeReplicaTask = dataNodeInfo.pollRemoveTask()) != null) {
+				Command removeCommand = new Command(Command.REMOVE);
+				removeCommand.setContent(JSON.toJSONString(removeReplicaTask));
+				commands.add(removeCommand);
+				//为了防止响应报文太大，允许一次心跳最多带回500个复制任务
+				if(commands.size() >= 500) {
+					break;
+				}
+			}
+
 			response = HeartbeatResponse.newBuilder()
 					.setStatus(HeartbeatResult.SUCCESS.getStatus())
+					.setCommands(JSONArray.toJSONString(commands))
 					.build();
 		} else {
 			System.out.println("心跳失败，找不到对应实例，指示datanode执行重新注册和全量上报命令");
@@ -317,12 +346,13 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	 */
 	@Override
 	public void informReplicaReceived(InformReplicaReceivedRequest request, StreamObserver<InformReplicaReceivedResponse> responseObserver) {
-		String fileName = request.getFilename();
+		String fileInfoJson = request.getFileInfo();
+		FileInfo fileInfo = JSON.parseObject(fileInfoJson, FileInfo.class);
 		String hostName = request.getHostname();
 		String ip = request.getIp();
 
 		//处理文件副本信息
-        namesystem.addRecivedReplica(fileName, hostName, ip);
+        namesystem.addRecivedReplica(fileInfo, hostName, ip);
 
 		InformReplicaReceivedResponse response = InformReplicaReceivedResponse.newBuilder()
 				.setStatus(STATUS_SUCCESS)
@@ -340,13 +370,13 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	public void reportCompleteStorageInfo(ReportCompleteStorageInfoRequest request, StreamObserver<ReportCompleteStorageInfoResponse> responseObserver) {
 		String ip = request.getIp();
 		String hostName = request.getHostname();
-		String fileNames = request.getFilenames();
+		String fileInfosJson = request.getFileInfo();
 		long storedDataSIze = request.getStoredDataSize();
 
 		datanodeManager.setStoredDataSize(ip, hostName, storedDataSIze);
-		List<String> fileNameList = JSONObject.parseArray(fileNames, String.class);
-		for (String fileName : fileNameList) {
-			namesystem.addRecivedReplica(fileName, hostName, ip);
+		List<FileInfo> fileNameList = JSONObject.parseArray(fileInfosJson, FileInfo.class);
+		for (FileInfo fileInfo : fileNameList) {
+			namesystem.addRecivedReplica(fileInfo, hostName, ip);
 		}
 		ReportCompleteStorageInfoResponse response = ReportCompleteStorageInfoResponse
 				.newBuilder()
@@ -372,6 +402,16 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 				.build();
 		responseObserver.onNext(response);
 		responseObserver.onCompleted();
+	}
+
+	/**
+	 * 集群数据重平衡
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void reBalance(ReBalanceRequest request, StreamObserver<ReBalanceResponse> responseObserver) {
+
 	}
 
 	/**

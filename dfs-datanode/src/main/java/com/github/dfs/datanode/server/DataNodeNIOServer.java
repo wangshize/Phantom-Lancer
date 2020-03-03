@@ -1,6 +1,8 @@
 package com.github.dfs.datanode.server;
 
 
+import com.github.dfs.common.entity.FileInfo;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -215,7 +217,8 @@ public class DataNodeNIOServer extends Thread {
             removeCache(remoteAddr);
             System.out.println("文件读取完毕，返回响应给客户端: " + remoteAddr);
             //增量上报给namenode，接收到的文件信息
-            nameNodeRpcClient.informReplicaReceived(fileName.relativeFilename, DataNodeConfig.DATANODE_HOSTNAME, DataNodeConfig.DATANODE_IP);
+            FileInfo fileInfo = new FileInfo(fileName.relativeFilename, imageLength);
+            nameNodeRpcClient.informReplicaReceived(fileInfo, DataNodeConfig.DATANODE_HOSTNAME, DataNodeConfig.DATANODE_IP);
             //结束后取消对事件的监听
             key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
         }
@@ -253,25 +256,7 @@ public class DataNodeNIOServer extends Thread {
                 return null;
             }
             filename.relativeFilename = relativeFilename;
-            // /image/product/iphone.jpg
-            //NameNodeConstants.imagePath + DataNodeConfig.DATANODE_HOSTNAME
-            String[] relativeFilenameSplited = relativeFilename.split("/");
-
-            StringBuilder sbDirPath = new StringBuilder(DataNodeConfig.DATANODE_FILE_PATH);
-            for(int i = 0; i < relativeFilenameSplited.length - 1; i++) {
-                sbDirPath.append("/")
-                        .append(relativeFilenameSplited[i]);
-            }
-
-            File dir = new File(sbDirPath.toString());
-            if(!dir.exists()) {
-                dir.mkdirs();
-            }
-
-            String absoluteFilename = sbDirPath
-                    .append("/")
-                    .append(relativeFilenameSplited[relativeFilenameSplited.length - 1])
-                    .toString();
+            String absoluteFilename = FileUtiles.getAbsoluteFileName(relativeFilename);
             filename.absoluteFilename = absoluteFilename;
             System.out.println("解析出文件名：" + absoluteFilename);
             CachedRequest cachedRequest = getCachedRequest(remoteAddr);

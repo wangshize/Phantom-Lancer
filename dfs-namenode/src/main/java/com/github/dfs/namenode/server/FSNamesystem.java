@@ -1,7 +1,10 @@
 package com.github.dfs.namenode.server;
 
 import com.alibaba.fastjson.JSONObject;
-import com.github.dfs.namenode.NameNodeConstants;
+import com.github.dfs.common.NameNodeConstants;
+import com.github.dfs.common.entity.DataNodeInfo;
+import com.github.dfs.common.entity.FileInfo;
+import com.github.dfs.common.entity.RemoveReplicaTask;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,9 +42,16 @@ public class FSNamesystem {
 	 */
 	private Map<String, List<DataNodeInfo>> replicasByFilename =
 			new ConcurrentHashMap<>();
+	/**
+	 * 每个文件对应的副本所在的DataNode
+	 */
+	private Map<String, List<FileInfo>> filesByDataNode =
+			new ConcurrentHashMap<>();
 	private ReadWriteLock replicasLock = new ReentrantReadWriteLock();
 	private Lock replicasWriteLock = replicasLock.writeLock();
 	private Lock replicasReadLock = replicasLock.readLock();
+
+	private final static int REPLICATE_NUM = 1;
 
 	private DataNodeManager dataNodeManager;
 
@@ -87,19 +97,40 @@ public class FSNamesystem {
 
 	/**
 	 * 添加文件的相关信息 文件处于哪些datanode节点
-	 * @param fileName
+	 * @param fileInfo
 	 */
-    public void addRecivedReplica(String fileName, String hostName, String ip) {
+    public void addRecivedReplica(FileInfo fileInfo, String hostName, String ip) {
         try {
             replicasWriteLock.lock();
-            List<DataNodeInfo> replicas = replicasByFilename.get(fileName);
-            if(replicas == null) {
-                replicas = new ArrayList<>();
-                replicasByFilename.put(fileName, replicas);
-            }
-            DataNodeInfo dataNodeInfo = dataNodeManager.getDataNodeInfo(ip, hostName);
+            String fileName = fileInfo.getFileName();
+            //维护每个文件副本所在的数据节点
+			DataNodeInfo dataNodeInfo = dataNodeManager.getDataNodeInfo(ip, hostName);
+			List<DataNodeInfo> replicas = replicasByFilename.get(fileName);
+			if(replicas == null) {
+				replicas = new ArrayList<>();
+				replicasByFilename.put(fileName, replicas);
+			}
+			//移除已经下线的数据节点信息
+//			removeDeadDataNode(replicas);
+
+			//减少节点的存储数据量，保证每份文件的副本个数固定
+			if(replicas.size() == REPLICATE_NUM) {
+				System.out.println("文件副本超过" + REPLICATE_NUM + "个，需要生成删除副本任务") ;
+				RemoveReplicaTask removeReplicaTask = new RemoveReplicaTask(fileName, dataNodeInfo);
+				dataNodeInfo.addRemoveTask(removeReplicaTask);
+				return;
+			}
             replicas.add(dataNodeInfo);
-            System.out.println("收到增量上报，当前副本信息为：" + replicasByFilename);
+            //维护每个数据节点拥有的文件副本
+			String dataNodeKey = ip + "-" + hostName;
+			List<FileInfo> files = filesByDataNode.get(dataNodeKey);
+			if(files == null) {
+				files = new ArrayList<>();
+					filesByDataNode.put(dataNodeKey, files);
+			}
+			files.add(fileInfo);
+            System.out.println("收到存储上报，当前副本信息为：" + replicasByFilename
+				+ "," + filesByDataNode);
         } finally {
             replicasWriteLock.unlock();
         }
@@ -121,17 +152,7 @@ public class FSNamesystem {
 			if(dataNodeInfos == null || dataNodeInfos.size() == 0) {
 				throw new IllegalArgumentException("文件不存在于任何数据节点");
 			}
-			Iterator<DataNodeInfo> infoIterator =  dataNodeInfos.iterator();
-			//移除已经被下线的数据节点
-			while (infoIterator.hasNext()) {
-				DataNodeInfo dataNodeInfo = infoIterator.next();
-				boolean isRemovedFromRegister = dataNodeManager.getDataNodeInfo(
-						dataNodeInfo.getIp(),
-						dataNodeInfo.getHostname()) == null;
-				if(isRemovedFromRegister) {
-					infoIterator.remove();
-				}
-			}
+//			removeDeadDataNode(dataNodeInfos);
 			List<DataNodeInfo> filterList = dataNodeInfos;
 			if(excludedHostName != null && excludedNioPort != -1) {
 				filterList = dataNodeInfos.stream()
@@ -146,7 +167,21 @@ public class FSNamesystem {
 		}
 	}
 
-    private DataNodeInfo selectedDataNode(List<DataNodeInfo> dataNodeInfos) {
+	private void removeDeadDataNode(List<DataNodeInfo> dataNodeInfos) {
+		Iterator<DataNodeInfo> infoIterator =  dataNodeInfos.iterator();
+		//移除已经被下线的数据节点
+		while (infoIterator.hasNext()) {
+			DataNodeInfo dataNodeInfo = infoIterator.next();
+			boolean isRemovedFromRegister = dataNodeManager.getDataNodeInfo(
+					dataNodeInfo.getIp(),
+					dataNodeInfo.getHostname()) == null;
+			if(isRemovedFromRegister) {
+				infoIterator.remove();
+			}
+		}
+	}
+
+	private DataNodeInfo selectedDataNode(List<DataNodeInfo> dataNodeInfos) {
         int size = dataNodeInfos.size();
         Random random = new Random();
         int index = random.nextInt(size);
@@ -241,4 +276,41 @@ public class FSNamesystem {
 		return editlog;
 	}
 
+	public List<FileInfo> getFileInfoByDataNode(String dataNodeKey) {
+		return filesByDataNode.get(dataNodeKey);
+	}
+
+	public DataNodeInfo getReplicateSource(String fileName, DataNodeInfo deadDataNode) {
+		try {
+			replicasReadLock.lock();
+			List<DataNodeInfo> dataNodeInfos = replicasByFilename.get(fileName);
+			if(dataNodeInfos != null && dataNodeInfos.size() > 0) {
+				for (DataNodeInfo dataNodeInfo : dataNodeInfos) {
+					if(!deadDataNode.getDataNodeKey().equals(dataNodeInfo.getDataNodeKey())) {
+						return dataNodeInfo;
+					}
+				}
+			}
+		} finally {
+			replicasReadLock.unlock();
+		}
+		return null;
+	}
+
+	/**
+	 * 删除数据节点的文件副本的数据结构
+	 */
+	public void removeDeadDataNode(DataNodeInfo deadDataNode) {
+		try {
+			replicasWriteLock.lock();
+			List<FileInfo> fileInfoList = filesByDataNode.get(deadDataNode.getDataNodeKey());
+			for (FileInfo fileInfo : fileInfoList) {
+				List<DataNodeInfo> fileDataNodes = replicasByFilename.get(fileInfo.getFileName());
+				fileDataNodes.remove(deadDataNode);
+			}
+			filesByDataNode.remove(deadDataNode.getDataNodeKey());
+		} finally {
+			replicasWriteLock.unlock();
+		}
+	}
 }

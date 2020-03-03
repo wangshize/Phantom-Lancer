@@ -1,10 +1,7 @@
 package com.github.dfs.datanode.server;
 
-import com.github.dfs.namenode.RegisterResult;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+import com.github.dfs.client.NIOClient;
+import com.github.dfs.common.RegisterResult;
 
 /**
  * DataNode启动类
@@ -29,6 +26,13 @@ public class DataNode {
 	 * 磁盘存储管理组件
 	 */
 	private StorageManager storageManager;
+
+	/**
+	 * 复制任务管理组件
+	 */
+	private ReplicateManager replicateManager;
+
+	private NIOClient nioClient;
 	
 	/**
 	 * 初始化DataNode
@@ -49,8 +53,10 @@ public class DataNode {
 				this.nameNodeRpcClient.reportCompleteStorageInfo(storageInfo);
 			}
 		}
+
+		this.replicateManager = new ReplicateManager(nioClient, nameNodeRpcClient);
 		this.heartbeatManager = new HeartbeatManager(
-				this.nameNodeRpcClient, this.storageManager);
+				this.nameNodeRpcClient, this.storageManager, this.replicateManager);
 		this.heartbeatManager.start();
 		DataNodeNIOServer nioServer = new DataNodeNIOServer(this.nameNodeRpcClient);
 		nioServer.start();

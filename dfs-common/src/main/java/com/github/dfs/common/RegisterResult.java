@@ -1,4 +1,4 @@
-package com.github.dfs.namenode;
+package com.github.dfs.common;
 
 /**
  * @author wangsz
