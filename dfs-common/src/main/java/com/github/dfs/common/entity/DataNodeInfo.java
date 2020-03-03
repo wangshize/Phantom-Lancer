@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  */
 @EqualsAndHashCode
-@ToString
 public class DataNodeInfo implements Comparable<DataNodeInfo> {
 
 	private String ip;
@@ -125,5 +124,12 @@ public class DataNodeInfo implements Comparable<DataNodeInfo> {
 
 	public void setActive(boolean active) {
 		this.active = active;
+	}
+
+	@Override
+	public String toString() {
+		return "DataNodeInfo{" +
+				"hostname='" + hostname + '\'' +
+				'}';
 	}
 }

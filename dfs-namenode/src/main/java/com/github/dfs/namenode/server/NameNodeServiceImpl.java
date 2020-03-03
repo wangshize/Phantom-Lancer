@@ -99,7 +99,7 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 			ReplicateTask replicateTask;
 			while ((replicateTask = dataNodeInfo.pollReplicateTask()) != null) {
 				Command replicateCommand = new Command(Command.REPLICATE);
-				replicateCommand.setContent(JSON.toJSONString(replicateTask));
+				replicateCommand.setContent(JSONObject.toJSONString(replicateTask));
 				commands.add(replicateCommand);
 				//为了防止响应报文太大，允许一次心跳最多带回500个复制任务
 				if(commands.size() >= 500) {
@@ -109,14 +109,14 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 			RemoveReplicaTask removeReplicaTask;
 			while ((removeReplicaTask = dataNodeInfo.pollRemoveTask()) != null) {
 				Command removeCommand = new Command(Command.REMOVE);
-				removeCommand.setContent(JSON.toJSONString(removeReplicaTask));
+				removeCommand.setContent(JSONObject.toJSONString(removeReplicaTask));
 				commands.add(removeCommand);
 				//为了防止响应报文太大，允许一次心跳最多带回500个复制任务
 				if(commands.size() >= 500) {
 					break;
 				}
 			}
-
+			System.out.println("向" + dataNodeInfo + "发送命令" + commands);
 			response = HeartbeatResponse.newBuilder()
 					.setStatus(HeartbeatResult.SUCCESS.getStatus())
 					.setCommands(JSONArray.toJSONString(commands))

@@ -14,10 +14,6 @@ public class Command {
     private Integer type;
     private String content;
 
-    public Command() {
-
-    }
-
     public Command(Integer type) {
         this.type = type;
     }
@@ -33,5 +29,13 @@ public class Command {
     }
     public void setContent(String content) {
         this.content = content;
+    }
+
+    @Override
+    public String toString() {
+        return "Command{" +
+                "type=" + type +
+                ", content='" + content + '\'' +
+                '}';
     }
 }

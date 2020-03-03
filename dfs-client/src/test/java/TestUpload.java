@@ -18,7 +18,7 @@ public class TestUpload {
         FileSystem fileSystem = new FileSystemImpl();
         String filePath = "/Users/wangsz/Desktop/mac.png";
         File file = new File(filePath);
-        String uploadFileName = "mac/test4.png";
+        String uploadFileName = "test.png";
         long fileSize = file.length();
 
         ByteBuffer buffer = ByteBuffer.allocate((int)fileSize);

@@ -1,9 +1,12 @@
 package com.github.dfs.common.entity;
 
+import lombok.ToString;
+
 /**
  * 副本复制任务
  *
  */
+@ToString
 public class ReplicateTask {
 
 	private String filename;

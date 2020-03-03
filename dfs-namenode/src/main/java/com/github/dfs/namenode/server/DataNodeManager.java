@@ -145,12 +145,10 @@ public class DataNodeManager {
 				DataNodeInfo destDatanode = replicateDatanodes.get(0);
 				//复制文件的源头数据节点
 				DataNodeInfo srcDatanode = namesystem.getReplicateSource(filename, deadDatanode);
-				if(srcDatanode != null) {
-					ReplicateTask replicateTask = new ReplicateTask(
-							filename, fileLength, destDatanode, srcDatanode);
-					srcDatanode.addReplicateTask(replicateTask);
-				}
-
+				ReplicateTask replicateTask = new ReplicateTask(
+						filename, fileLength, destDatanode, srcDatanode);
+				destDatanode.addReplicateTask(replicateTask);
+				System.out.println("为文件生成一个复制任务：" + replicateTask);
 			}
 		}
 	}
@@ -208,27 +206,22 @@ public class DataNodeManager {
 					DataNodeInfo datanode = null;
 					while(datanodesIterator.hasNext()) {
 						datanode = datanodesIterator.next();
-						if(System.currentTimeMillis() - datanode.getLatestHeartbeatTime() > 30 * 1000) {
+						if(System.currentTimeMillis() - datanode.getLatestHeartbeatTime() > 10 * 1000) {
 							toRemoveDatanodes.add(datanode);
 						}
 					}
 					
 					if(!toRemoveDatanodes.isEmpty()) {
 						for(DataNodeInfo toRemoveDatanode : toRemoveDatanodes) {
-							//数据节点和文件副本的关系 FSNamesystem里的replicasByFilename
-							//采用了惰性删除，也就是在读取文件的时候，根据文件名获取到数据节点，
-							// 如果发现数据节点已经宕机了，那么此时再删除他们的对应关系
-							//对于filesByDatanode的维护，为每个文件生成一个复制任务，将该节点上
-							//的文件复制一份到其他节点上，保证每个文件至少有两份副本
-							//考虑一个问题，复制过程中如果又重启了呢？需要为重启的那个节点生成删除任务
-							createLostReplicaTask(toRemoveDatanode);
+							System.out.println("数据节点" + toRemoveDatanode.getHostname() + "已经宕机");
 							datanodes.remove(toRemoveDatanode.getDataNodeKey());
+							createLostReplicaTask(toRemoveDatanode);
 							namesystem.removeDeadDataNode(toRemoveDatanode);
-
+							System.out.println("移除数据节点");
 						}
 					}
 					
-					Thread.sleep(30 * 1000);
+					Thread.sleep(20 * 1000);
 				}
 			} catch (Exception e) {
 				e.printStackTrace();

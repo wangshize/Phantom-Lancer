@@ -51,7 +51,7 @@ public class FSNamesystem {
 	private Lock replicasWriteLock = replicasLock.writeLock();
 	private Lock replicasReadLock = replicasLock.readLock();
 
-	private final static int REPLICATE_NUM = 1;
+	private final static int REPLICATE_NUM = 2;
 
 	private DataNodeManager dataNodeManager;
 
@@ -304,9 +304,11 @@ public class FSNamesystem {
 		try {
 			replicasWriteLock.lock();
 			List<FileInfo> fileInfoList = filesByDataNode.get(deadDataNode.getDataNodeKey());
-			for (FileInfo fileInfo : fileInfoList) {
-				List<DataNodeInfo> fileDataNodes = replicasByFilename.get(fileInfo.getFileName());
-				fileDataNodes.remove(deadDataNode);
+			if(fileInfoList != null) {
+				for (FileInfo fileInfo : fileInfoList) {
+					List<DataNodeInfo> fileDataNodes = replicasByFilename.get(fileInfo.getFileName());
+					fileDataNodes.remove(deadDataNode);
+				}
 			}
 			filesByDataNode.remove(deadDataNode.getDataNodeKey());
 		} finally {

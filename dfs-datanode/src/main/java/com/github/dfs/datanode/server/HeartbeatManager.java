@@ -2,12 +2,14 @@ package com.github.dfs.datanode.server;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.github.dfs.common.Command;
 import com.github.dfs.common.HeartbeatResult;
 import com.github.dfs.common.entity.RemoveReplicaTask;
 import com.github.dfs.common.entity.ReplicateTask;
 import com.github.dfs.namenode.rpc.model.HeartbeatResponse;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -49,7 +51,17 @@ public class HeartbeatManager {
 						HeartbeatResponse response = namenodeRpcClient.heartbeat();
 						HeartbeatResult heartbeatResult = HeartbeatResult.fromCode(response.getStatus());
 						if(heartbeatResult.equals(HeartbeatResult.SUCCESS)) {
-							List<Command> commands = JSONArray.parseArray(response.getCommands(), Command.class);
+							JSONArray commandsJson = JSON.parseArray(response.getCommands());
+							List<Command> commands = new ArrayList<>();
+							for (int i = 0; i < commandsJson.size(); i++) {
+								JSONObject jsonObject = commandsJson.getJSONObject(i);
+								Integer type = jsonObject.getInteger("type");
+								String content = jsonObject.getString("content");
+								Command command = new Command(type);
+								command.setContent(content);
+								commands.add(command);
+							}
+							System.out.println("心跳命令数量 = " + commands.size());
 							for (int i = 0; i < commands.size(); i++) {
 								Command command = commands.get(i);
 								int commandType = command.getType();
@@ -91,7 +103,7 @@ public class HeartbeatManager {
 					}
 					// 每隔30秒发送一次心跳到NameNode上去
 					try {
-						Thread.sleep(30 * 1000);
+						Thread.sleep(10 * 1000);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}

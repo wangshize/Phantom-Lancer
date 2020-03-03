@@ -40,7 +40,6 @@ public class FileUtiles {
             imageChannel.position(imageChannel.size());
 
             ByteBuffer fileBuffer = ByteBuffer.wrap(fileData);
-            fileBuffer.flip();
             imageChannel.write(fileBuffer);
         }
     }

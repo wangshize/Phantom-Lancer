@@ -10,8 +10,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 
-import static com.github.dfs.datanode.server.DataNodeConfig.*;
-
 /**
  * 负责跟NameNode集群中的某一个进行通信的线程组件
  * @author zhonghuashishan
@@ -23,7 +21,7 @@ public class NameNodeRpcClient {
 	
 	public NameNodeRpcClient() {
 		ManagedChannel channel = NettyChannelBuilder
-				.forAddress(NAMENODE_HOSTNAME, NAMENODE_PORT)
+				.forAddress(DataNodeConfig.NAMENODE_HOSTNAME, DataNodeConfig.NAMENODE_PORT)
 				.negotiationType(NegotiationType.PLAINTEXT)
 				.build();
 		this.namenode = NameNodeServiceGrpc.newBlockingStub(channel);
@@ -40,9 +38,9 @@ public class NameNodeRpcClient {
 
 		// 通过RPC接口发送到NameNode他的注册接口上去
 		RegisterRequest request = RegisterRequest.newBuilder()
-				.setIp(DATANODE_IP)
-				.setHostname(DATANODE_HOSTNAME)
-				.setNioPort(NIO_PORT)
+				.setIp(DataNodeConfig.DATANODE_IP)
+				.setHostname(DataNodeConfig.DATANODE_HOSTNAME)
+				.setNioPort(DataNodeConfig.NIO_PORT)
 				.build();
 		RegisterResponse response = namenode.register(request);
 		RegisterResult registerResult = RegisterResult.fromCode(response.getStatus());
@@ -55,10 +53,11 @@ public class NameNodeRpcClient {
 	 * @throws Exception
 	 */
 	public HeartbeatResponse heartbeat() {
+		System.out.println("准备心跳续约：" + DataNodeConfig.DATANODE_HOSTNAME);
 		HeartbeatRequest request = HeartbeatRequest.newBuilder()
-				.setIp(DATANODE_IP)
-				.setHostname(DATANODE_HOSTNAME)
-				.setNioPort(NIO_PORT)
+				.setIp(DataNodeConfig.DATANODE_IP)
+				.setHostname(DataNodeConfig.DATANODE_HOSTNAME)
+				.setNioPort(DataNodeConfig.NIO_PORT)
 				.build();
 		return namenode.heartbeat(request);
 	}
@@ -85,41 +84,10 @@ public class NameNodeRpcClient {
 		ReportCompleteStorageInfoRequest request = ReportCompleteStorageInfoRequest.newBuilder()
 				.setFileInfo(JSONArray.toJSONString(storageInfo.getFileInfos()))
 				.setStoredDataSize(storageInfo.getStoredDataSize())
-				.setHostname(DATANODE_HOSTNAME)
-				.setIp(DATANODE_IP)
+				.setHostname(DataNodeConfig.DATANODE_HOSTNAME)
+				.setIp(DataNodeConfig.DATANODE_IP)
 				.build();
 		namenode.reportCompleteStorageInfo(request);
-	}
-
-	/**
-	 * 负责心跳的线程
-	 * @author zhonghuashishan
-	 *
-	 */
-	class HeartbeatThread extends Thread {
-		
-		@Override
-		public void run() {
-			try {
-				while(true) {
-					System.out.println("发送RPC请求到NameNode进行心跳.......");  
-					
-					// 通过RPC接口发送到NameNode他的注册接口上去
-					
-					HeartbeatRequest request = HeartbeatRequest.newBuilder()
-							.setIp(DATANODE_IP)
-							.setHostname(DATANODE_HOSTNAME)
-							.build();
-					HeartbeatResponse response = namenode.heartbeat(request);
-					System.out.println("接收到NameNode返回的心跳响应：" + response.getStatus());
-					// 每隔30秒发送一次心跳到NameNode上去
-					Thread.sleep(30 * 1000);
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-		
 	}
 	
 }

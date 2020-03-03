@@ -14,8 +14,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static com.github.dfs.datanode.server.DataNodeConfig.NIO_PORT;
-
 public class DataNodeNIOServer extends Thread {
 
     public static final Integer SEND_FILE = 1;
@@ -46,7 +44,7 @@ public class DataNodeNIOServer extends Thread {
 
             serverSocketChannel = ServerSocketChannel.open();
             serverSocketChannel.configureBlocking(false);
-            serverSocketChannel.socket().bind(new InetSocketAddress(NIO_PORT), 100);
+            serverSocketChannel.socket().bind(new InetSocketAddress(DataNodeConfig.NIO_PORT), 100);
             serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
             for(int i = 0; i < 3; i++) {
@@ -57,7 +55,7 @@ public class DataNodeNIOServer extends Thread {
                 new Worker(queues.get(i)).start();
             }
 
-            System.out.println("NIOServer已经启动，开始监听端口：" + NIO_PORT);
+            System.out.println("NIOServer已经启动，开始监听端口：" + DataNodeConfig.NIO_PORT);
         } catch (IOException e) {
             e.printStackTrace();
         }
