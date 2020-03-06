@@ -4,6 +4,7 @@ import com.github.dfs.common.NameNodeConstants;
 import com.github.dfs.common.RegisterResult;
 import com.github.dfs.common.entity.DataNodeInfo;
 import com.github.dfs.common.entity.FileInfo;
+import com.github.dfs.common.entity.RemoveReplicaTask;
 import com.github.dfs.common.entity.ReplicateTask;
 
 import java.util.*;
@@ -23,6 +24,9 @@ public class DataNodeManager {
 			new ConcurrentHashMap<String, DataNodeInfo>();
 
 	private FSNamesystem namesystem;
+
+	private Map<String, RemoveReplicaTask> waitRemovedTask =
+			new ConcurrentHashMap<>();
 	
 	public DataNodeManager() {
 		new DataNodeAliveMonitor().start();
@@ -130,7 +134,7 @@ public class DataNodeManager {
 	/**
 	 * 创建丢失副本的复制任务
 	 */
-	public void createLostReplicaTask(DataNodeInfo deadDatanode) {
+	public void createReplicaTask(DataNodeInfo deadDatanode) {
 		List<FileInfo> files = namesystem.getFileInfoByDataNode(
 				deadDatanode.getDataNodeKey());
 		if(files == null) {
@@ -153,7 +157,7 @@ public class DataNodeManager {
 		}
 	}
 
-	public void createReblanceReplicateTasks() {
+	public void createReBalanceTasks() {
 		synchronized (this) {
 			long totalStoreDataSize = 0;
 			long averageStoreDataSize;
@@ -171,24 +175,60 @@ public class DataNodeManager {
 					destDataNodes.add(dataNode);
 				}
 			}
+			//为destDataNode生成复制任务，为sourceDataNode生成删除任务
 			for (DataNodeInfo sourceDataNode : sourceDataNodes) {
 				long toRemoveDataSize = sourceDataNode.getStoredDataSize() - averageStoreDataSize;
 				for (DataNodeInfo destDataNode : destDataNodes) {
+					//直接一次性放到一个节点即可
 					if(destDataNode.getStoredDataSize() + toRemoveDataSize <= averageStoreDataSize) {
 						//获取sourceDataNode节点里的文件，遍历文件，决定哪些文件要迁移过
-						//对这些文件生成迁移/复制文件任务
-
-						//生成文件删除任务
-
+						createReBalanceTasks(sourceDataNode, destDataNode, toRemoveDataSize);
 						break;
-					} else if(destDataNode.getStoredDataSize() < averageStoreDataSize) {
-
+					}
+					//只能将部分数据放到一个节点
+					else if(destDataNode.getStoredDataSize() < averageStoreDataSize) {
+						long maxRemoveDataSize = averageStoreDataSize - destDataNode.getStoredDataSize();
+						long removedDataSize = createReBalanceTasks(sourceDataNode, destDataNode, maxRemoveDataSize);
+						toRemoveDataSize -= removedDataSize;
 					}
 				}
 			}
 		}
 	}
-	
+
+	private long createReBalanceTasks(DataNodeInfo sourceDataNode, DataNodeInfo destDataNode, long removeDataSize) {
+		List<FileInfo> files = namesystem.getFileInfoByDataNode(sourceDataNode.getDataNodeKey());
+		long removedDataSize = 0;
+		for (FileInfo file : files) {
+			if (removedDataSize >= removeDataSize) {
+				break;
+			}
+			//生成文件复制文件任务
+			ReplicateTask task = new ReplicateTask(file.getFileName(), file.getFileLength(),
+					destDataNode, sourceDataNode);
+			destDataNode.addStoredFileSize(file.getFileLength());
+			destDataNode.addReplicateTask(task);
+			//生成文件删除任务
+			RemoveReplicaTask removeTask = new RemoveReplicaTask(file.getFileName(), sourceDataNode);
+			namesystem.removeReplicaFromDataNode(sourceDataNode, file);
+			sourceDataNode.setStoredDataSize(-file.getFileLength());
+			//删除任务不直接下发到sourceDataNode，而是destDataNode确保复制成功后，
+			//再通知nameNode下发删除任务到sourceDataNode
+			waitRemovedTask.put(file.getFileName(), removeTask);
+			removedDataSize += file.getFileLength();
+
+		}
+		return removeDataSize;
+	}
+
+	public void ackReBalance(String fileName) {
+		RemoveReplicaTask removeTask = waitRemovedTask.get(fileName);
+		if(removeTask != null) {
+			removeTask.getOnRemoveDataNode().addRemoveTask(removeTask);
+			waitRemovedTask.remove(fileName);
+		}
+	}
+
 	/**
 	 * datanode是否存活的监控线程
 	 * @author zhonghuashishan
@@ -215,7 +255,7 @@ public class DataNodeManager {
 						for(DataNodeInfo toRemoveDatanode : toRemoveDatanodes) {
 							System.out.println("数据节点" + toRemoveDatanode.getHostname() + "已经宕机");
 							datanodes.remove(toRemoveDatanode.getDataNodeKey());
-							createLostReplicaTask(toRemoveDatanode);
+							createReplicaTask(toRemoveDatanode);
 							namesystem.removeDeadDataNode(toRemoveDatanode);
 							System.out.println("移除数据节点");
 						}

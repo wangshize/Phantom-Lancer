@@ -1,30 +1,22 @@
 package com.github.dfs.common.entity;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * 删除副本任务
  *
  */
+@Getter
+@Setter
 public class RemoveReplicaTask {
 
 	private String filename;
-	private DataNodeInfo datanode;
-	
-	public RemoveReplicaTask(String filename, DataNodeInfo datanode) {
+	private DataNodeInfo onRemoveDataNode;
+
+	public RemoveReplicaTask(String filename, DataNodeInfo removeDataNode) {
 		this.filename = filename;
-		this.datanode = datanode;
-	}
-	
-	public String getFilename() {
-		return filename;
-	}
-	public void setFilename(String filename) {
-		this.filename = filename;
-	}
-	public DataNodeInfo getDatanode() {
-		return datanode;
-	}
-	public void setDatanode(DataNodeInfo datanode) {
-		this.datanode = datanode;
+		this.onRemoveDataNode = removeDataNode;
 	}
 	
 }

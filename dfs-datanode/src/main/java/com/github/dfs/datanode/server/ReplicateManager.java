@@ -66,6 +66,7 @@ public class ReplicateManager {
 
                     FileInfo fileInfo = new FileInfo(fileName, fileLength);
                     nameNodeRpcClient.informReplicaReceived(fileInfo, DataNodeConfig.DATANODE_HOSTNAME, DataNodeConfig.DATANODE_IP);
+                    nameNodeRpcClient.ackReBalance(fileName);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

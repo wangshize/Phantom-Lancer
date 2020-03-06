@@ -1,7 +1,6 @@
 package com.github.dfs.common.entity;
 
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 

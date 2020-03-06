@@ -411,7 +411,29 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 	 */
 	@Override
 	public void reBalance(ReBalanceRequest request, StreamObserver<ReBalanceResponse> responseObserver) {
+		datanodeManager.createReBalanceTasks();
 
+		ReBalanceResponse response = ReBalanceResponse.newBuilder()
+				.setStatus(STATUS_SUCCESS)
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
+
+	/**
+	 * @param request
+	 * @param responseObserver
+	 */
+	@Override
+	public void ackReBalance(AckReBalanceRequest request, StreamObserver<AckReBalanceResponse> responseObserver) {
+		String fileName = request.getFileName();
+		datanodeManager.ackReBalance(fileName);
+
+		AckReBalanceResponse response = AckReBalanceResponse.newBuilder()
+				.setStatus(STATUS_SUCCESS)
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
 	}
 
 	/**

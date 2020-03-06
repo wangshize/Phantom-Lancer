@@ -1,5 +1,8 @@
 package com.github.dfs.common;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * @author wangsz
  * @create 2020-02-19
@@ -11,24 +14,15 @@ public class Command {
     public static final Integer REPLICATE = 3;
     public static final Integer REMOVE = 4;
 
+    @Setter
+    @Getter
     private Integer type;
+    @Setter
+    @Getter
     private String content;
 
     public Command(Integer type) {
         this.type = type;
-    }
-
-    public Integer getType() {
-        return type;
-    }
-    public void setType(Integer type) {
-        this.type = type;
-    }
-    public String getContent() {
-        return content;
-    }
-    public void setContent(String content) {
-        this.content = content;
     }
 
     @Override

@@ -277,7 +277,32 @@ public class FSNamesystem {
 	}
 
 	public List<FileInfo> getFileInfoByDataNode(String dataNodeKey) {
-		return filesByDataNode.get(dataNodeKey);
+		try {
+			replicasReadLock.lock();
+			return filesByDataNode.get(dataNodeKey);
+		} finally {
+			replicasReadLock.unlock();
+		}
+	}
+
+	public void removeReplicaFromDataNode(DataNodeInfo toRemoveNode, FileInfo fileInfo) {
+		try {
+			replicasWriteLock.lock();
+			String dataNodeKey = toRemoveNode.getDataNodeKey();
+			String fileName = fileInfo.getFileName();
+			filesByDataNode.get(dataNodeKey)
+					.remove(fileName);
+			Iterator<DataNodeInfo> dataNodeIt = replicasByFilename.get(fileName).iterator();
+			while (dataNodeIt.hasNext()) {
+				DataNodeInfo dataNodeInfo = dataNodeIt.next();
+				if(dataNodeInfo.getDataNodeKey().equals(dataNodeKey)) {
+					dataNodeIt.remove();
+				}
+			}
+
+		} finally {
+			replicasWriteLock.unlock();
+		}
 	}
 
 	public DataNodeInfo getReplicateSource(String fileName, DataNodeInfo deadDataNode) {

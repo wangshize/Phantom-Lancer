@@ -89,5 +89,11 @@ public class NameNodeRpcClient {
 				.build();
 		namenode.reportCompleteStorageInfo(request);
 	}
-	
+
+	public void ackReBalance(String fileName) {
+		AckReBalanceRequest request = AckReBalanceRequest.newBuilder()
+				.setFileName(fileName)
+				.build();
+		namenode.ackReBalance(request);
+	}
 }

@@ -114,3 +114,10 @@ message ReBalanceRequest{
 message ReBalanceResponse{
     int32 status = 1;
 }
+//通知文件迁移完成
+message AckReBalanceRequest{
+    string fileName = 1;
+}
+message AckReBalanceResponse{
+    int32 status = 1;
+}

@@ -22,5 +22,6 @@ service NameNodeService {
 	rpc chooseDataNodeForFile(ChooseDataNodeForFileRequest) returns (ChooseDataNodeForFileResponse);
 	rpc reallocateDataNode(ReallocateDataNodeRequest) returns (ReallocateDataNodeResponse);
 	rpc reBalance(ReBalanceRequest) returns (ReBalanceResponse);
+	rpc ackReBalance(AckReBalanceRequest) returns (AckReBalanceResponse);
 
 }
