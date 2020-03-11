@@ -22,7 +22,7 @@ public class FileSystemImpl implements FileSystem {
 
     private NameNodeServiceGrpc.NameNodeServiceBlockingStub namenode;
 
-    private NIOClient nioClient;
+    private NioClient nioClient;
 
     public FileSystemImpl() {
         ManagedChannel channel = NettyChannelBuilder
@@ -30,7 +30,7 @@ public class FileSystemImpl implements FileSystem {
                 .negotiationType(NegotiationType.PLAINTEXT)
                 .build();
         this.namenode = NameNodeServiceGrpc.newBlockingStub(channel);
-        this.nioClient = new NIOClient();
+        this.nioClient = new NioClient();
     }
 
     /**
@@ -77,10 +77,10 @@ public class FileSystemImpl implements FileSystem {
         List<DataNodeInfo> datanodes = JSONArray.parseArray(dataNodesJson, DataNodeInfo.class);
         for (int i = 0; i < datanodes.size(); i++) {
             DataNodeInfo datanode = datanodes.get(i);
-            boolean sendResult = sendFIle(file, fileName, fileSize, datanode);
+            boolean sendResult = sendFile(file, fileName, fileSize, datanode);
             if(!sendResult) {
                 DataNodeInfo dataNodeInfo = reAllocateDataNode(datanode, fileSize);
-                sendResult = sendFIle(file, fileName, fileSize, dataNodeInfo);
+                sendResult = sendFile(file, fileName, fileSize, dataNodeInfo);
                 if(!sendResult) {
                     //重试一次，再失败就抛出异常
                     throw new Exception("send file fail......");
@@ -90,7 +90,7 @@ public class FileSystemImpl implements FileSystem {
 
     }
 
-    private boolean sendFIle(byte[] file, String fileName, long fileSize, DataNodeInfo datanode) {
+    private boolean sendFile(byte[] file, String fileName, long fileSize, DataNodeInfo datanode) throws Exception {
         String hostName = datanode.getHostname();
         int nioPort = datanode.getNioPort();
         return nioClient.sendFile(hostName, nioPort, file, fileSize, fileName);

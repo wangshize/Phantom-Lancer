@@ -1,15 +1,13 @@
 package com.github.dfs.datanode.server;
 
-import com.github.dfs.client.NIOClient;
+import com.github.dfs.client.NioClient;
 import com.github.dfs.common.entity.DataNodeInfo;
 import com.github.dfs.common.entity.FileInfo;
 import com.github.dfs.common.entity.RemoveReplicaTask;
 import com.github.dfs.common.entity.ReplicateTask;
 
 import java.io.File;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * 副本复制管理组件
@@ -23,10 +21,10 @@ public class ReplicateManager {
     private ConcurrentLinkedQueue<RemoveReplicaTask> removeTaskQueue =
             new ConcurrentLinkedQueue<>();
 
-    private NIOClient nioClient;
+    private NioClient nioClient;
     private NameNodeRpcClient nameNodeRpcClient;
 
-    public ReplicateManager(NIOClient nioClient, NameNodeRpcClient nameNodeRpcClient) {
+    public ReplicateManager(NioClient nioClient, NameNodeRpcClient nameNodeRpcClient) {
         this.nioClient = nioClient;
         this.nameNodeRpcClient = nameNodeRpcClient;
         for (Integer i = 0; i < DataNodeConfig.REPLICATE_THREAD_NUM; i++) {

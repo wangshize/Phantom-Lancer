@@ -7,16 +7,23 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
+import java.util.UUID;
 
 /**
  * 上传文件到datanode
  * @author wangsz
  * @create 2020-02-15
  **/
-public class NIOClient {
+public class NioClient {
 
-    public static final Integer SEND_FILE = 1;
-    public static final Integer READ_FILE = 2;
+    public static final Integer FILENAME_LENGTH = 4;
+    public static final Integer FILE_LENGTH = 8;
+
+    private NetWorkManager netWorkManager;
+
+    public NioClient() {
+        this.netWorkManager = new NetWorkManager();
+    }
 
     /**
      * 发送文件
@@ -26,75 +33,25 @@ public class NIOClient {
      * @param fileSize
      */
     public boolean sendFile(String hostName, int nioPort,
-                                byte[] file, long fileSize, String fileName) {
-        boolean sendSuccess = true;
-        //建立短链接，发送完一个文件就释放连接  简单实现
-        SocketChannel channel = null;
-        Selector selector = null;
-        try {
-            channel = SocketChannel.open();
-            //设置连接为非阻塞，否则select()轮询的时候就会阻塞
-            //相应的，下面获取连接的时候，就要通过finishConnect来判断是否已经建立
-            channel.configureBlocking(false);
-            channel.connect(new InetSocketAddress(hostName, nioPort));
-            selector = Selector.open();
-            //将SocketChannel注册大盘selector上，相当于告诉哦selector在轮询的时候
-            // 这个channel是否有OP_CONNECT这个事件，有的话就通知过来
-            channel.register(selector, SelectionKey.OP_CONNECT);
+                                byte[] file, long fileSize, String fileName) throws Exception {
+        netWorkManager.tryConnect(hostName, nioPort);
+        NetWorkRequest request = NetWorkRequest.builder()
+                .requestId(UUID.randomUUID().toString())
+                .requestType(NetWorkRequest.SEND_FILE)
+                .byteBuffer(sendFileByteBuffer(file, fileSize, fileName))
+                .hostName(hostName)
+                .nioPort(nioPort)
+                .timeOut(200L)
+                .build();
+        netWorkManager.sendRequest(request);
+        NetWorkResponse response =  netWorkManager.waitResponse(request);
+        ByteBuffer buffer = response.getBuffer();
+        String result = new String(buffer.array(), 0, buffer.remaining());
 
-            boolean sending = true;
-
-            while(sending){
-                //在轮询多个channel的时候，不会因为某个channel没有时间发生就阻塞在那里，而是集训轮询下一个channel
-                selector.select();
-
-                Iterator<SelectionKey> keysIterator = selector.selectedKeys().iterator();
-                while(keysIterator.hasNext()){
-                    SelectionKey key = (SelectionKey) keysIterator.next();
-                    keysIterator.remove();
-                    //NIOServer回应允许建立连接
-                    if(key.isConnectable()){
-                        channel = (SocketChannel) key.channel();
-
-                        if(channel.isConnectionPending()){
-                            //三次握手完毕，一个TCP链接建立完毕
-                            channel.finishConnect();
-                        }
-                        ByteBuffer buffer = sendFileByteBuffer(file, fileSize, fileName);
-                        int sendData = channel.write(buffer);
-                        System.out.println("已经发送" + sendData + "字节的数据");
-
-                        channel.register(selector, SelectionKey.OP_READ);
-                    }
-                    //收到NIOServer的响应
-                    else if(key.isReadable()){
-                        channel = (SocketChannel) key.channel();
-
-                        sending = afterSendFile(channel, sending);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            sendSuccess = false;
-        } finally{
-            if(channel != null){
-                try {
-                    channel.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            if(selector != null){
-                try {
-                    selector.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            return sendSuccess;
+        if(result.equals(NetWorkResponse.SUCCESS)) {
+            return true;
         }
+        return false;
     }
 
     public byte[] readFile(String hostName, int nioPort, String fileName) throws Exception {
@@ -117,7 +74,7 @@ public class NIOClient {
 
                 Iterator<SelectionKey> keysIterator = selector.selectedKeys().iterator();
                 while(keysIterator.hasNext()) {
-                    SelectionKey key = (SelectionKey) keysIterator.next();
+                    SelectionKey key = keysIterator.next();
                     keysIterator.remove();
                     if(key.isConnectable()){
                         if(channel.isConnectionPending()){
@@ -169,34 +126,27 @@ public class NIOClient {
         return file;
     }
 
-    private static ByteBuffer sendFileByteBuffer(byte[] file, long fileSize, String fileName) {
-        ByteBuffer buffer = ByteBuffer.allocate((int)fileSize * 2 + fileName.length());
-        buffer.putInt(SEND_FILE);
+    private ByteBuffer sendFileByteBuffer(byte[] file, long fileSize, String fileName) {
+        ByteBuffer buffer = ByteBuffer.allocate(
+                NetWorkRequest.REQUEST_TYPE +
+                FILENAME_LENGTH +
+                fileName.length() +
+                FILE_LENGTH +
+                (int)fileSize );
+        buffer.putInt(NetWorkRequest.SEND_FILE);
         //文件名长度和文件名
         buffer.putInt(fileName.length());
         buffer.put(fileName.getBytes());
         // long对应了8个字节，放到buffer里去 表示图片大小
         buffer.putLong(fileSize);
         buffer.put(file);
-        buffer.flip();
+        buffer.rewind();
         return buffer;
-    }
-
-    private static boolean afterSendFile(SocketChannel channel, boolean sending) throws IOException {
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
-        int len = channel.read(buffer);
-
-        if(len > 0) {
-            System.out.println("[" + Thread.currentThread().getName()
-                    + "]收到响应：" + new String(buffer.array(), 0, len));
-            sending = false;
-        }
-        return sending;
     }
 
     private static ByteBuffer readFileByteBuffer(String fileName) {
         ByteBuffer buffer = ByteBuffer.allocate(8 + fileName.length());
-        buffer.putInt(READ_FILE);
+        buffer.putInt(NetWorkRequest.READ_FILE);
         //文件名长度和文件名
         buffer.putInt(fileName.length());
         buffer.put(fileName.getBytes());

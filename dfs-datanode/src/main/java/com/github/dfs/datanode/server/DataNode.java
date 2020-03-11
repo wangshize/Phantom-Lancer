@@ -1,6 +1,6 @@
 package com.github.dfs.datanode.server;
 
-import com.github.dfs.client.NIOClient;
+import com.github.dfs.client.NioClient;
 import com.github.dfs.common.RegisterResult;
 
 /**
@@ -32,7 +32,7 @@ public class DataNode {
 	 */
 	private ReplicateManager replicateManager;
 
-	private NIOClient nioClient;
+	private NioClient nioClient;
 	
 	/**
 	 * 初始化DataNode
@@ -53,7 +53,7 @@ public class DataNode {
 				this.nameNodeRpcClient.reportCompleteStorageInfo(storageInfo);
 			}
 		}
-		this.nioClient = new NIOClient();
+		this.nioClient = new NioClient();
 		this.replicateManager = new ReplicateManager(nioClient, nameNodeRpcClient);
 		this.heartbeatManager = new HeartbeatManager(
 				this.nameNodeRpcClient, this.storageManager, this.replicateManager);

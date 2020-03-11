@@ -107,6 +107,7 @@ public class NioProcessor extends Thread {
                         //请求读取完毕，就交给IO线程处理
                         request.setProcessId(processId);
                         request.setClient(client);
+
                         NetWorkRequestQueue requestQueue = NetWorkRequestQueue.getInstance();
                         requestQueue.offer(request);
 
