@@ -19,5 +19,6 @@ public class NetWorkResponse {
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
     private ByteBuffer buffer;
+    private Boolean sendSuccess;
     private String requestId;
 }

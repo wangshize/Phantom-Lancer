@@ -1,5 +1,7 @@
 import com.github.dfs.client.FileSystem;
 import com.github.dfs.client.FileSystemImpl;
+import com.github.dfs.client.NetWorkResponse;
+import com.github.dfs.client.ResponseCallBack;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -26,7 +28,18 @@ public class TestUpload {
         FileChannel channel = imageIn.getChannel();
         channel.read(buffer);
         buffer.flip();
-        fileSystem.upload(buffer.array(), uploadFileName, fileSize);
+        fileSystem.upload(buffer.array(), uploadFileName, fileSize, new ResponseCallBack() {
+            @Override
+            public void process(NetWorkResponse response) {
+                try {
+                    if(Boolean.FALSE.equals(response.getSendSuccess())) {
+                        fileSystem.upload(buffer.array(), uploadFileName, fileSize, null);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
 
 //        download(uploadFileName, fileSystem);
     }

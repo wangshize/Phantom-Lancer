@@ -52,16 +52,6 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 		this.namesystem = namesystem;
 		this.datanodeManager = datanodeManager;
 	}
-	
-	/**
-	 * 创建目录
-	 * @param path 目录路径
-	 * @return 是否创建成功
-	 * @throws Exception
-	 */
-	public Boolean mkdir(String path) throws Exception {
-		return this.namesystem.mkdir(path);
-	}
 
 	/**
 	 * datanode进行注册
@@ -137,34 +127,6 @@ public class NameNodeServiceImpl extends NameNodeServiceGrpc.NameNodeServiceImpl
 
 		responseObserver.onNext(response);
 		responseObserver.onCompleted();
-	}
-
-	/**
-	 * 创建目录
-	 * @param request
-	 * @param responseObserver
-	 */
-	@Override
-	public void mkdir(MkdirRequest request, StreamObserver<MkdirResponse> responseObserver) {
-		try {
-			MkdirResponse response = null;
-			if(!isRunning) {
-				response = MkdirResponse.newBuilder()
-						.setStatus(STATUS_SHUTDOWN)
-						.build();
-			} else {
-				this.namesystem.mkdir(request.getPath());
-				System.out.println("创建目录：path = " + request.getPath());
-				response = MkdirResponse.newBuilder()
-						.setStatus(STATUS_SUCCESS)
-						.build();
-			}
-
-			responseObserver.onNext(response);
-			responseObserver.onCompleted();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 	}
 
 	@Override

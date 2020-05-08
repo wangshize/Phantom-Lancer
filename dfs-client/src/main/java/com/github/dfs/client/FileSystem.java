@@ -6,11 +6,10 @@ package com.github.dfs.client;
  **/
 public interface FileSystem {
 
-    void mkdir(String path);
-
     void shutdown();
 
-    void upload(byte[] file, String fileName, long fileSize) throws Exception;
+    void upload(byte[] file, String fileName, long fileSize,
+                ResponseCallBack callBack) throws Exception;
 
-    public byte[] download(String fileName);
+    byte[] download(String fileName);
 }

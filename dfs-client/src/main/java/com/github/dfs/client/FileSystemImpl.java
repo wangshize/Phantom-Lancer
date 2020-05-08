@@ -33,19 +33,6 @@ public class FileSystemImpl implements FileSystem {
         this.nioClient = new NioClient();
     }
 
-    /**
-     * 创建目录
-     * @param path 文件路径
-     */
-    @Override
-    public void mkdir(String path) {
-        MkdirRequest request = MkdirRequest.newBuilder()
-                .setPath(path)
-                .build();
-        MkdirResponse response = namenode.mkdir(request);
-        System.out.println("创建目录的响应：" + response.getStatus());
-    }
-
     @Override
     public void shutdown() {
         ShutdownRequest request = ShutdownRequest.newBuilder()
@@ -55,7 +42,8 @@ public class FileSystemImpl implements FileSystem {
     }
 
     @Override
-    public void upload(byte[] file, String fileName, long fileSize) throws Exception {
+    public void upload(byte[] file, String fileName, long fileSize,
+                       ResponseCallBack callBack) throws Exception {
         //1、先向namenode节点创建一个文件目录路径
         //需要查重，如果存在了即不允许上传
         CreateFileRequest request = CreateFileRequest.newBuilder()
@@ -77,10 +65,10 @@ public class FileSystemImpl implements FileSystem {
         List<DataNodeInfo> datanodes = JSONArray.parseArray(dataNodesJson, DataNodeInfo.class);
         for (int i = 0; i < datanodes.size(); i++) {
             DataNodeInfo datanode = datanodes.get(i);
-            boolean sendResult = sendFile(file, fileName, fileSize, datanode);
+            boolean sendResult = sendFile(file, fileName, fileSize, datanode, callBack);
             if(!sendResult) {
                 DataNodeInfo dataNodeInfo = reAllocateDataNode(datanode, fileSize);
-                sendResult = sendFile(file, fileName, fileSize, dataNodeInfo);
+                sendResult = sendFile(file, fileName, fileSize, dataNodeInfo, callBack);
                 if(!sendResult) {
                     //重试一次，再失败就抛出异常
                     throw new Exception("send file fail......");
@@ -90,13 +78,14 @@ public class FileSystemImpl implements FileSystem {
 
     }
 
-    private boolean sendFile(byte[] file, String fileName, long fileSize, DataNodeInfo datanode) throws Exception {
+    private boolean sendFile(byte[] file, String fileName, long fileSize, DataNodeInfo datanode,
+                             ResponseCallBack callBack) throws Exception {
         String hostName = datanode.getHostname();
         int nioPort = datanode.getNioPort();
-        return nioClient.sendFile(hostName, nioPort, file, fileSize, fileName);
+        return nioClient.sendFile(hostName, nioPort, file, fileSize, fileName, callBack);
     }
 
-    private DataNodeInfo reAllocateDataNode(DataNodeInfo excludedDataNode, long fileSize) {
+    public DataNodeInfo reAllocateDataNode(DataNodeInfo excludedDataNode, long fileSize) {
         ReallocateDataNodeRequest request = ReallocateDataNodeRequest.newBuilder()
                 .setFileSize(fileSize)
                 .setExcludedHostName(excludedDataNode.getHostname())

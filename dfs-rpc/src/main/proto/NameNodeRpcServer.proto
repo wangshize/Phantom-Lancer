@@ -11,7 +11,6 @@ import "NameNodeRpcModel.proto";
 service NameNodeService {  
     rpc register(RegisterRequest) returns (RegisterResponse);  
 	rpc heartbeat(HeartbeatRequest) returns (HeartbeatResponse);  
-	rpc mkdir(MkdirRequest) returns (MkdirResponse);
 	rpc shutdown(ShutdownRequest) returns (ShutdownResponse);
 	rpc fetchEditsLog(FetchEditsLogRequest) returns (FetchEditsLogResponse);
 	rpc updateCheckPointTxId(CheckPointTxIdRequest) returns (CheckPointTxIdResponse);

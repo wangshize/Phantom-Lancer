@@ -19,4 +19,6 @@ public class DataNodeConfig {
 
     public static Integer REPLICATE_THREAD_NUM = 3;
 
+    public static int MAX_SIZE_FILE = 50 * 1024 * 1024;
+
 }

@@ -25,13 +25,6 @@ message HeartbeatResponse{
     int32 status  = 1;
     string commands = 2;
 }
-//创建目录
-message MkdirRequest{
-    string path  = 1;
-}
-message MkdirResponse{
-    int32 status  = 1;
-}
 //优雅关闭
 message ShutdownRequest{
     int32 code  = 1;

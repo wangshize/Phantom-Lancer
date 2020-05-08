@@ -61,21 +61,6 @@ public class FSNamesystem {
 		this.dataNodeManager = dataNodeManager;
 		receoverDirectory();
 	}
-	
-	/**
-	 * 创建目录
-	 * @param path 目录路径
-	 * @return 是否成功
-	 */
-	public Boolean mkdir(String path) throws Exception {
-		this.directory.mkdir(path);
-		EditLog log = EditLog.builder()
-				.opration(EditLog.FileOP.MKDIR)
-				.path(path)
-				.build();
-		this.editlog.logEdit(log);
-		return true;
-	}
 
     /**
      * 创建文件
@@ -100,8 +85,8 @@ public class FSNamesystem {
 	 * @param fileInfo
 	 */
     public void addRecivedReplica(FileInfo fileInfo, String hostName, String ip) {
-        try {
-            replicasWriteLock.lock();
+		replicasWriteLock.lock();
+		try {
             String fileName = fileInfo.getFileName();
             //维护每个文件副本所在的数据节点
 			DataNodeInfo dataNodeInfo = dataNodeManager.getDataNodeInfo(ip, hostName);

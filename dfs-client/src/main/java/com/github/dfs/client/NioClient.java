@@ -33,7 +33,8 @@ public class NioClient {
      * @param fileSize
      */
     public boolean sendFile(String hostName, int nioPort,
-                                byte[] file, long fileSize, String fileName) throws Exception {
+                                byte[] file, long fileSize, String fileName,
+                                ResponseCallBack callBack) throws Exception {
         netWorkManager.tryConnect(hostName, nioPort);
         NetWorkRequest request = NetWorkRequest.builder()
                 .requestId(UUID.randomUUID().toString())
@@ -45,6 +46,9 @@ public class NioClient {
                 .build();
         netWorkManager.sendRequest(request);
         NetWorkResponse response =  netWorkManager.waitResponse(request);
+        if(callBack != null) {
+            callBack.process(response);
+        }
         ByteBuffer buffer = response.getBuffer();
         String result = new String(buffer.array(), 0, buffer.remaining());
 

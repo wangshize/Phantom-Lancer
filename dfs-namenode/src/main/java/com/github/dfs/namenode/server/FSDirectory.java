@@ -105,15 +105,6 @@ public class FSDirectory {
 	}
 
 	/**
-	 * 添加文件的相关信息
-	 * @param fileName
-	 */
-	public void addRecivedReplica(String fileName) {
-
-
-	}
-
-	/**
 	 * 目录下是否存在这个文件
 	 * @param dir
 	 * @param filename
@@ -138,7 +129,6 @@ public class FSDirectory {
 	}
 	
 	/**
-	 * 对文件目录树递归查找目录
 	 * @param dir
 	 * @param path
 	 * @return
@@ -154,11 +144,11 @@ public class FSDirectory {
 				
 				if((childDir.getPath().equals(path))) {
 					return childDir;
-				} 
+				}
 
 			}
 		}
-		
+
 		return null;
 	}
 

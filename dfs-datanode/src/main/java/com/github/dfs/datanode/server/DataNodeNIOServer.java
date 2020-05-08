@@ -28,6 +28,7 @@ public class DataNodeNIOServer extends Thread {
     }
 
     public void init() {
+
         ServerSocketChannel serverSocketChannel = null;
         try {
             selector = Selector.open();

@@ -58,9 +58,10 @@ public class DataNode {
 		this.heartbeatManager = new HeartbeatManager(
 				this.nameNodeRpcClient, this.storageManager, this.replicateManager);
 		this.heartbeatManager.start();
-		DataNodeNIOServer nioServer = new DataNodeNIOServer(nameNodeRpcClient);
-		nioServer.init();
-		nioServer.start();
+//		DataNodeNIOServer nioServer = new DataNodeNIOServer(nameNodeRpcClient);
+		DataNodeNettyServer server = new DataNodeNettyServer(nameNodeRpcClient);
+		server.init();
+//		nioServer.start();
 	}
 	
 	/**

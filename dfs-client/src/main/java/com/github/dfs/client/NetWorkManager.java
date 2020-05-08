@@ -22,6 +22,7 @@ public class NetWorkManager {
 
     public static final Integer CONNECTING = 1;
     public static final Integer CONNECTED = 2;
+    public static final Integer DISCONNECTED = 3;
 
     public static final Integer POLL_TIME_OUT = 500;
 
@@ -36,12 +37,20 @@ public class NetWorkManager {
 
     private Selector selector;
 
+    /**
+     * 已经建立好的连接
+     * key：hostName value：连接
+     */
     private Map<String, SelectionKey> connections;
 
+    /**
+     * 建立好的链接的状态
+     * key：hostName value：状态
+     */
     private Map<String, Integer> connectedStatus;
 
     /**
-     * 等待建立连接
+     * 等待建立连接的列表
      */
     private ConcurrentLinkedQueue<Host> waitingConnectHosts;
 
@@ -50,7 +59,16 @@ public class NetWorkManager {
      */
     private Map<String, ConcurrentLinkedQueue<NetWorkRequest>> waitingRequests;
 
+    /**
+     * 已经发送出去的请求，对于每个host来说，请求必须顺序发送，这个host的请求发送出去，等到它的
+     * 响应回来了才能发送下一个。 即使上层应用是并行发送的
+     * key：hostName
+     */
     private Map<String, NetWorkRequest> toSendRequests;
+    /**
+     * 请求的响应
+     * key：requestId
+     */
     private Map<String, NetWorkResponse> waitingResponses;
 
 
@@ -76,7 +94,7 @@ public class NetWorkManager {
 
     public void tryConnect(String hostName, int nioPort) throws Exception {
         synchronized (this) {
-            if(!connectedStatus.containsKey(hostName)) {
+            if(!connectedStatus.containsKey(hostName) || DISCONNECTED.equals(connectedStatus.get(hostName))) {
                 connectedStatus.put(hostName, CONNECTING);
                 waitingConnectHosts.offer(new Host(hostName, nioPort));
             }
@@ -90,7 +108,9 @@ public class NetWorkManager {
         ConcurrentLinkedQueue<NetWorkRequest> requestQueue =
                 waitingRequests.get(request.getHostName());
         requestQueue.offer(request);
-        waitingResponses.put(request.getRequestId(), new NetWorkResponse());
+        NetWorkResponse response = new NetWorkResponse();
+        response.setRequestId(request.getRequestId());
+        waitingResponses.put(request.getRequestId(), response);
     }
 
     public NetWorkResponse waitResponse(NetWorkRequest request) throws Exception {
@@ -122,10 +142,15 @@ public class NetWorkManager {
         private void tryConnectOnWait() throws Exception {
             Host host;
             while ((host = waitingConnectHosts.poll()) != null) {
-                SocketChannel channel = SocketChannel.open();
-                channel.configureBlocking(false);
-                channel.connect(new InetSocketAddress(host.hostName, host.nioPort));
-                channel.register(selector, SelectionKey.OP_CONNECT);
+                try {
+                    SocketChannel channel = SocketChannel.open();
+                    channel.configureBlocking(false);
+                    channel.connect(new InetSocketAddress(host.hostName, host.nioPort));
+                    channel.register(selector, SelectionKey.OP_CONNECT);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    connectedStatus.put(host.getHostName(), DISCONNECTED);
+                }
             }
         }
 
@@ -166,7 +191,7 @@ public class NetWorkManager {
                     } else if(key.isWritable()) {
                         sendRequest(channel, key);
                     } else if(key.isReadable()) {
-                        readResponse(channel);
+                        readResponse(channel, key);
                     }
                 }
             } catch (Exception e) {
@@ -191,7 +216,7 @@ public class NetWorkManager {
             key.interestOps(SelectionKey.OP_READ);
         }
 
-        private void readResponse(SocketChannel channel) throws Exception {
+        private void readResponse(SocketChannel channel, SelectionKey key) throws Exception {
             InetSocketAddress remoteAddress = (InetSocketAddress) channel.getRemoteAddress();
             String hostName = remoteAddress.getHostName();
 
@@ -204,7 +229,9 @@ public class NetWorkManager {
                 byteBuffer.flip();
                 response.setRequestId(request.getRequestId());
                 response.setBuffer(byteBuffer);
+                response.setSendSuccess(true);
             }
+            key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
             if(request.getAsync()) {
                 waitingResponses.remove(requestId);
             }
