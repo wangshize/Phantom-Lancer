@@ -1,5 +1,6 @@
-package com.github.dfs.datanode.server;
+package com.github.dfs.datanode.server.del;
 
+import com.github.dfs.datanode.server.FileUtiles;
 import lombok.Getter;
 import lombok.Setter;
 

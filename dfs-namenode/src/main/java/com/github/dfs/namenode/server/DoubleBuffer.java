@@ -117,7 +117,7 @@ public class DoubleBuffer {
 			long startLastMaxTxid = lastMaxTxid + 1;
 			String filePath = NameNodeConstants.editelogPath +
 					startLastMaxTxid + "-" + endTxid + ".log";
-			IOUitls.wiriteFile(filePath, buffer.toByteArray());
+			IOUitls.writeFile(filePath, buffer.toByteArray());
 			txidFileMappers.add(new FlushedFileMapper(startLastMaxTxid, endTxid, filePath));
 			lastMaxTxid = endTxid;
 		}

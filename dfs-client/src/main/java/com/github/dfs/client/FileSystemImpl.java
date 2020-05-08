@@ -2,6 +2,8 @@ package com.github.dfs.client;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
+import com.github.dfs.client.netty.DfsClient;
+import com.github.dfs.client.netty.NetWorkRequest;
 import com.github.dfs.namenode.rpc.model.*;
 import com.github.dfs.namenode.rpc.service.NameNodeServiceGrpc;
 import io.grpc.ManagedChannel;
@@ -22,7 +24,8 @@ public class FileSystemImpl implements FileSystem {
 
     private NameNodeServiceGrpc.NameNodeServiceBlockingStub namenode;
 
-    private NioClient nioClient;
+//    private NioClient nioClient;
+    private DfsClient dfsClient;
 
     public FileSystemImpl() {
         ManagedChannel channel = NettyChannelBuilder
@@ -30,7 +33,8 @@ public class FileSystemImpl implements FileSystem {
                 .negotiationType(NegotiationType.PLAINTEXT)
                 .build();
         this.namenode = NameNodeServiceGrpc.newBlockingStub(channel);
-        this.nioClient = new NioClient();
+//        this.nioClient = new NioClient();
+        this.dfsClient = new DfsClient();
     }
 
     @Override
@@ -42,20 +46,20 @@ public class FileSystemImpl implements FileSystem {
     }
 
     @Override
-    public void upload(byte[] file, String fileName, long fileSize,
+    public void upload(byte[] file, String fileName,
                        ResponseCallBack callBack) throws Exception {
         //1、先向namenode节点创建一个文件目录路径
         //需要查重，如果存在了即不允许上传
-        CreateFileRequest request = CreateFileRequest.newBuilder()
+        CreateFileRequest createFileRequest = CreateFileRequest.newBuilder()
                 .setFileName(fileName)
                 .build();
-        CreateFileResponse response = namenode.createFile(request);
-        System.out.println(Thread.currentThread().getName() + "上传文件，查重创建文件结果 = " + response.getStatus());
+        CreateFileResponse createFileResponse = namenode.createFile(createFileRequest);
+        System.out.println(Thread.currentThread().getName() + "上传文件，查重创建文件结果 = " + createFileResponse.getStatus());
         //2、找namenode要多个数据节点的地址，因为需要向多个数据节点上传数据
         //尽可能在分配数据节点的时候，保证每个数据节点的数据量是均衡的
         AllocateDataNodesRequest dataNodesRequest = AllocateDataNodesRequest.newBuilder()
                 .setFileName(fileName)
-                .setFileSize(fileSize)
+                .setFileSize(file.length)
                 .build();
         AllocateDataNodesResponse allocateDataNodesResponse = namenode.allocateDataNodesFile(dataNodesRequest);
         String dataNodesJson = allocateDataNodesResponse.getDatanodes();
@@ -63,12 +67,18 @@ public class FileSystemImpl implements FileSystem {
         //3、依次吧文件上传到数据节点，
         // 需要考虑如果上传过程中，某个节点上传失败的容错机制
         List<DataNodeInfo> datanodes = JSONArray.parseArray(dataNodesJson, DataNodeInfo.class);
+        NetWorkRequest request = NetWorkRequest.builder()
+                .fileBytes(file)
+                .fileName(fileName)
+                .requestType(NetWorkRequest.SEND_FILE)
+                .build();
         for (int i = 0; i < datanodes.size(); i++) {
             DataNodeInfo datanode = datanodes.get(i);
-            boolean sendResult = sendFile(file, fileName, fileSize, datanode, callBack);
+            long fileSize = file.length;
+            boolean sendResult = sendFile(request, datanode, callBack);
             if(!sendResult) {
                 DataNodeInfo dataNodeInfo = reAllocateDataNode(datanode, fileSize);
-                sendResult = sendFile(file, fileName, fileSize, dataNodeInfo, callBack);
+                sendResult = sendFile(request, dataNodeInfo, callBack);
                 if(!sendResult) {
                     //重试一次，再失败就抛出异常
                     throw new Exception("send file fail......");
@@ -78,11 +88,11 @@ public class FileSystemImpl implements FileSystem {
 
     }
 
-    private boolean sendFile(byte[] file, String fileName, long fileSize, DataNodeInfo datanode,
+    private boolean sendFile(NetWorkRequest request, DataNodeInfo dataNode,
                              ResponseCallBack callBack) throws Exception {
-        String hostName = datanode.getHostname();
-        int nioPort = datanode.getNioPort();
-        return nioClient.sendFile(hostName, nioPort, file, fileSize, fileName, callBack);
+        String hostName = dataNode.getHostname();
+        int nioPort = dataNode.getNioPort();
+        return dfsClient.sendFile(hostName, nioPort, request, callBack);
     }
 
     public DataNodeInfo reAllocateDataNode(DataNodeInfo excludedDataNode, long fileSize) {
@@ -106,7 +116,7 @@ public class FileSystemImpl implements FileSystem {
         try {
             String hostName = dataNodeInfo.getHostname();
             int nioPort = dataNodeInfo.getNioPort();
-            fileByte = nioClient.readFile(hostName, nioPort, fileName);
+            fileByte = dfsClient.readFile(hostName, nioPort, fileName);
         } catch (Exception e) {
             e.printStackTrace();
             String hostName = dataNodeInfo.getHostname();
@@ -115,7 +125,7 @@ public class FileSystemImpl implements FileSystem {
             String newHostName = newDataNodeInfo.getHostname();
             int newNioPort = newDataNodeInfo.getNioPort();
             try {
-                fileByte = nioClient.readFile(newHostName, newNioPort, fileName);
+                fileByte = dfsClient.readFile(newHostName, newNioPort, fileName);
             } catch (Exception e1) {
                 e1.printStackTrace();
             }

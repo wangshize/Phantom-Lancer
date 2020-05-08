@@ -1,11 +1,8 @@
 package com.github.dfs.client.netty;
 
-import io.netty.buffer.ByteBuf;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.nio.ByteBuffer;
 
 /**
  * @author wangsz

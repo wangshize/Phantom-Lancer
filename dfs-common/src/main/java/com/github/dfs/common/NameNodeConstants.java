@@ -13,7 +13,7 @@ public class NameNodeConstants {
      */
     public static final Integer EDIT_LOG_BUFFER_LIMIT = 25 * 1024;
 
-    public static final String root = "/Users/wangsz/SourceCode/dfsfile/";
+    public static final String root = "/Users/wangsz/dfsfile/";
 
     public static final String imagePath =  root + "fsimage/";
 

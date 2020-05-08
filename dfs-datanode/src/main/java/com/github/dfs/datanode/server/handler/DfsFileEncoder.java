@@ -13,8 +13,8 @@ public class DfsFileEncoder extends MessageToByteEncoder<NetWorkResponse> {
 
     @Override
     protected void encode(ChannelHandlerContext ctx, NetWorkResponse msg, ByteBuf out) throws Exception {
-        byte[] responseByte = msg.getResponse().getBytes();
-        out.writeBytes(Unpooled.wrappedBuffer(responseByte));
+        out.writeByte(msg.getResponse());
+        out.writeBytes(Unpooled.wrappedBuffer(msg.getResBuffer()));
         ctx.writeAndFlush(msg);
     }
 }

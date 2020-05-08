@@ -90,11 +90,8 @@ public class FSNamesystem {
             String fileName = fileInfo.getFileName();
             //维护每个文件副本所在的数据节点
 			DataNodeInfo dataNodeInfo = dataNodeManager.getDataNodeInfo(ip, hostName);
-			List<DataNodeInfo> replicas = replicasByFilename.get(fileName);
-			if(replicas == null) {
-				replicas = new ArrayList<>();
-				replicasByFilename.put(fileName, replicas);
-			}
+			List<DataNodeInfo> replicas = replicasByFilename
+					.computeIfAbsent(fileName, k -> new ArrayList<>());
 			//移除已经下线的数据节点信息
 //			removeDeadDataNode(replicas);
 
@@ -108,11 +105,8 @@ public class FSNamesystem {
             replicas.add(dataNodeInfo);
             //维护每个数据节点拥有的文件副本
 			String dataNodeKey = ip + "-" + hostName;
-			List<FileInfo> files = filesByDataNode.get(dataNodeKey);
-			if(files == null) {
-				files = new ArrayList<>();
-					filesByDataNode.put(dataNodeKey, files);
-			}
+			List<FileInfo> files = filesByDataNode
+					.computeIfAbsent(dataNodeKey, k -> new ArrayList<>());
 			files.add(fileInfo);
             System.out.println("收到存储上报，当前副本信息为：" + replicasByFilename
 				+ "," + filesByDataNode);
@@ -131,8 +125,8 @@ public class FSNamesystem {
 	}
 
 	public DataNodeInfo getDataNodeInfo(String fileName, String excludedHostName, Integer excludedNioPort) {
+		replicasReadLock.lock();
 		try {
-			replicasReadLock.lock();
 			List<DataNodeInfo> dataNodeInfos = replicasByFilename.get(fileName);
 			if(dataNodeInfos == null || dataNodeInfos.size() == 0) {
 				throw new IllegalArgumentException("文件不存在于任何数据节点");
@@ -214,6 +208,9 @@ public class FSNamesystem {
 		long checkPointTxId = loadCheckPointTxId(NameNodeConstants.checkPointTxIdPath);
 		File editsLogDir = new File(NameNodeConstants.editelogPath);
 		File[] editsLogs = editsLogDir.listFiles();
+		if(editsLogs == null || editsLogs.length == 0) {
+			return;
+		}
 		Arrays.sort(editsLogs);
 		for (File editsLog : editsLogs) {
 			if(!editsLog.isFile()) {

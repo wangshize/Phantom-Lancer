@@ -1,6 +1,8 @@
-package com.github.dfs.datanode.server;
+package com.github.dfs.datanode.server.del;
 
 import com.github.dfs.common.entity.FileInfo;
+import com.github.dfs.datanode.server.DataNodeConfig;
+import com.github.dfs.datanode.server.NameNodeRpcClient;
 
 import java.io.File;
 import java.io.FileInputStream;

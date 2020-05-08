@@ -59,29 +59,25 @@ public class FSEditlog {
 		synchronized(this) {
 			//检查是否正在调度刷盘操作，目的是为了交换两块缓冲区
 			waitSchedulingSync();
-
 			// 获取全局唯一递增的txid，代表了edits log的序号
 			txidSeq++;
 			long txid = txidSeq;
-			localTxid.set(txid); // 放到ThreadLocal里去，相当于就是维护了一份本地线程的副本
-			
+			// 放到ThreadLocal里去，相当于就是维护了一份本地线程的副本
+			localTxid.set(txid);
 			// 构造一条edits log对象
 			editLog.setTxid(txid);
-			
 			// 将edits log写入内存缓冲中，不是直接刷入磁盘文件
 			try {
 				editLogBuffer.write(editLog);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-
 			//每次写完一条log之后，检查一下当前缓冲区是否已经满了
 			if(!editLogBuffer.shouldSyncToDisk()) {
 				return;
 			}
 			isSchedulingSync = true;
 		}
-		
 		logSync();
 	}
 
@@ -103,7 +99,8 @@ public class FSEditlog {
 	private void logSync() {
 		// 再次尝试加锁
 		synchronized(this) {
-			long txid = localTxid.get(); // 获取到本地线程的副本
+			// 获取到本地线程的副本
+			long txid = localTxid.get();
 
 			// 如果说当前正好有人在刷内存缓冲到磁盘中去
 			if(isSyncRunning) {
@@ -165,7 +162,7 @@ public class FSEditlog {
 
 	public void saveCheckPointTxId() {
 		try {
-			IOUitls.wiriteFile(NameNodeConstants.checkPointTxIdPath, String.valueOf(checkPointTxId).getBytes());
+			IOUitls.writeFile(NameNodeConstants.checkPointTxIdPath, String.valueOf(checkPointTxId).getBytes());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

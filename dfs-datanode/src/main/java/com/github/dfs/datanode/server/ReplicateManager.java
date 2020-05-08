@@ -1,6 +1,7 @@
 package com.github.dfs.datanode.server;
 
 import com.github.dfs.client.NioClient;
+import com.github.dfs.common.IOUitls;
 import com.github.dfs.common.entity.DataNodeInfo;
 import com.github.dfs.common.entity.FileInfo;
 import com.github.dfs.common.entity.RemoveReplicaTask;
@@ -60,8 +61,7 @@ public class ReplicateManager {
                     System.out.println("接收到复制任务，向源节点：" + hostName + " 复制文件" + fileName);
                     byte[] file = nioClient.readFile(hostName, nioPort, fileName);
                     String absoluteFilename = FileUtiles.getAbsoluteFileName(fileName);
-                    FileUtiles.saveFile(absoluteFilename, file);
-
+                    IOUitls.writeFile(absoluteFilename, file);
                     FileInfo fileInfo = new FileInfo(fileName, fileLength);
                     nameNodeRpcClient.informReplicaReceived(fileInfo, DataNodeConfig.DATANODE_HOSTNAME, DataNodeConfig.DATANODE_IP);
                     nameNodeRpcClient.ackReBalance(fileName);

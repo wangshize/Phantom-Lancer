@@ -6,6 +6,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.util.CharsetUtil;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
@@ -21,15 +22,17 @@ public class DfsFileDecoder extends ByteToMessageDecoder {
         request.setRequestType(requestType);
         Integer filenameLength = msgBuffer.readInt();
         ByteBuf fileNameBuf = msgBuffer.readBytes(filenameLength);
-        String relativeFilename = new String(fileNameBuf.array(), CharsetUtil.UTF_8);
+        byte[] fileNameBytes = new byte[filenameLength];
+        fileNameBuf.readBytes(fileNameBytes);
+        String relativeFilename = new String(fileNameBytes, CharsetUtil.UTF_8);
         request.setRelativeFilename(relativeFilename);
         String absoluteFilename = FileUtiles.getAbsoluteFileName(relativeFilename);
         request.setAbsoluteFilename(absoluteFilename);
         Long fileLength = msgBuffer.readLong();
         request.setFileLength(fileLength);
         byte[] fileBytes = new byte[fileLength.intValue()];
-        ByteBuf fileBuf = msgBuffer.readBytes(fileBytes);
-        request.setFileBuffer(fileBuf.nioBuffer());
+        msgBuffer.readBytes(fileBytes);
+        request.setFileBuffer(ByteBuffer.wrap(fileBytes));
         out.add(request);
     }
 }

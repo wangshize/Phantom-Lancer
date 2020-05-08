@@ -20,7 +20,7 @@ public class TestUpload {
         FileSystem fileSystem = new FileSystemImpl();
         String filePath = "/Users/wangsz/Desktop/mac.png";
         File file = new File(filePath);
-        String uploadFileName = "test.png";
+        String uploadFileName = "test2.png";
         long fileSize = file.length();
 
         ByteBuffer buffer = ByteBuffer.allocate((int)fileSize);
@@ -28,12 +28,12 @@ public class TestUpload {
         FileChannel channel = imageIn.getChannel();
         channel.read(buffer);
         buffer.flip();
-        fileSystem.upload(buffer.array(), uploadFileName, fileSize, new ResponseCallBack() {
+        fileSystem.upload(buffer.array(), uploadFileName, new ResponseCallBack() {
             @Override
             public void process(NetWorkResponse response) {
                 try {
                     if(Boolean.FALSE.equals(response.getSendSuccess())) {
-                        fileSystem.upload(buffer.array(), uploadFileName, fileSize, null);
+                        fileSystem.upload(buffer.array(), uploadFileName, null);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

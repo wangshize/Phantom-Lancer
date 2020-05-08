@@ -41,7 +41,7 @@ public class FSNamesystem {
 
 	public void saveCheckPointTxId() {
 		try {
-			IOUitls.wiriteFile(NameNodeConstants.CHECKPOINTTXIDPATH_BACKUPNODE,
+			IOUitls.writeFile(NameNodeConstants.CHECKPOINTTXIDPATH_BACKUPNODE,
 					String.valueOf(directory.getMaxTxid()).getBytes());
 		} catch (IOException e) {
 			e.printStackTrace();

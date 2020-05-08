@@ -67,6 +67,11 @@
 				<artifactId>netty-all</artifactId>
 				<version>4.1.38.Final</version>
 			</dependency>
+			<dependency>
+				<groupId>cn.hutool</groupId>
+				<artifactId>hutool-all</artifactId>
+				<version>5.2.0</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
