@@ -22,7 +22,7 @@
 		<dfs.client.version>0.0.1-SNAPSHOT</dfs.client.version>
 		<common.version>0.0.1-SNAPSHOT</common.version>
 		<grpc.version>1.17.1</grpc.version>
-		<protobuf.java.version>3.3.0</protobuf.java.version>
+		<protobuf.java.version>3.16.3</protobuf.java.version>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
